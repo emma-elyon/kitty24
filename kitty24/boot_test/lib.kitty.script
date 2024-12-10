@@ -1,0 +1,116 @@
+const CONSOLE_ADDRESS = 0xC00100
+let console_length = 0
+
+print(address) {
+	let character = [address]
+	let destination = CONSOLE_ADDRESS + console_length
+	while 0 < character {
+		[destination] = character
+		address = address + 1
+		destination = destination + 1
+		console_length = console_length + 1
+		character = [address]
+	}
+	[destination] = 0x00
+}
+
+println(address) {
+	let character = [address]
+	let destination = CONSOLE_ADDRESS + console_length
+	while 0 < character {
+		[destination] = character
+		address = address + 1
+		destination = destination + 1
+		console_length = console_length + 1
+		character = [address]
+	}
+	[destination] = 0x0A // Newline
+	console_length = console_length + 1
+	[destination + 1] = 0x00 // Null-terminating byte
+}
+
+string_from_number(number, destination) {
+	if number == 0 {
+		[destination] = 0x30 // '0'
+		[destination + 1] = 0x00 // null-terminating byte
+	} else {
+		let length = 8
+		// Build reverse number string.
+		while number > 0 && length > 0 {
+			let quotient, remainder = div_mod(number, 10)
+			[destination + length] = remainder + 0x30 // remainder + '0'
+			length = length - 1
+			number = quotient
+		}
+		// Reverse numbers.
+		let i = 0
+		while i <= 8 - length - 1 {
+			[destination + i] = [destination + i + length + 1]
+			i = i + 1
+		}
+		[destination + i] = 0x00
+	}
+}
+
+palette(from, to) {
+	[BLIT_REMAP + from] = to
+}
+
+text_scaled(address, x, y, width, height) {
+	let char_addr = address
+	let character = [char_addr]
+	let sx = x
+	while 0 < character {
+		let dy = 0
+		let char_offset = /terminess + character * 6 * 12 // 6 * 12
+		blit(char_offset, 6, 12, 6, FRAMEBUFFER + x + y * 320, width, height, 320)
+
+		char_addr = char_addr + 1
+		character = [char_addr]
+		if character == 10 {
+			x = sx - width
+			y = y + height
+		} else {
+			x = x + width
+		}
+	}
+	if x < sx {
+		x = sx
+	}
+	x, y
+}
+
+text_big(address, x, y) {
+	let char_addr = address
+	let character = [char_addr]
+	let sx = x
+	while 0 < character {
+		let dy = 0
+		let char_offset = /terminess + character * 6 * 12 // 6 * 12
+		blit(char_offset, 6, 12, 6, FRAMEBUFFER + x + y * 320, 12, 24, 320)
+
+		char_addr = char_addr + 1
+		character = [char_addr]
+		if character == 10 {
+			x = sx - 12
+			y = y + 24
+		} else {
+			x = x + 12
+		}
+	}
+	if x < sx {
+		x = sx
+	}
+	x, y
+}
+
+blit(src_address, src_width, src_height, src_stride, dst_address, dst_width, dst_height, dst_stride) {
+	[0xFC1200]:2 = src_stride
+	[0xFC1202]:2 = src_width
+	[0xFC1204]:2 = src_height
+	[0xFC1206]:3 = src_address
+	[0xFC1210]:2 = dst_stride
+	[0xFC1212]:2 = dst_width
+	[0xFC1214]:2 = dst_height
+	[0xFC1216]:3 = dst_address
+}

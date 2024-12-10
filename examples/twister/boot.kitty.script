@@ -1,0 +1,34 @@
+const HEIGHT = 127 // Doesn't work with `while y < HEIGHT` :( why?
+const SIN = 0x800000
+const FRAMEBUFFER = 0xFF0000
+const LINES = 0x801000
+
+let frame = 0
+
+main () {
+	init_sin8()
+	loop { }
+}
+
+VERTICAL_BLANK!() {
+	clear(241)
+
+	let x = 0
+	let center = ((180 - 128) >> 1)
+	while x < 320 {
+		let a = 0
+		let index_offset = 0
+		let angle_offset = sin8(x * sin8(frame) >> 8)
+		let offset = x + frame + angle_offset
+		while a <= 192 {
+			let y1 = sin8(offset + a) >> 1
+			let y2 = sin8(offset + a + 64) >> 1
+			if y1 < y2 {
+				vertical_line(x, y1 + center, y2 - y1, 242 + (a >> 6))
+			}
+			a = a + 64
+		}
+		x = x + 1
+	}
+	frame = frame + 1
+}

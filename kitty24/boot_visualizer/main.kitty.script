@@ -1,0 +1,92 @@
+let buffer = 0
+let list = 0
+let total = 0
+const LIST_SIZE = 8192
+
+main() {
+	init_allocator()
+	list = allocate(LIST_SIZE)
+	[list]:3 = 0
+	buffer = allocate(9)
+	loop {}
+}
+
+add_to_list(number) {
+	let length = [list]:3
+	[list + 3 + length * 3]:3 = number
+	[list]:3 = length + 1
+}
+
+take_random(seed) {
+	let length = [list]:3
+	if length > 0 {
+		let rand = hash(seed)
+		let _, index = div_mod(rand, length)
+		let address = [list + 3 + index * 3]:3
+		[list]:3 = length - 1
+		let list_buffer = allocate((length - index) * 3)
+		memcopy(list + 3 + index * 3 + 3, list_buffer, (length - index) * 3 - 3)
+		memcopy(list_buffer, list + 3 + index * 3, (length - index) * 3 - 3)
+		deallocate(list_buffer)
+		address
+	} else {
+		0
+	}
+}
+
+let frame = 0
+VBLANK!() {
+	if frame & 0 == 0 {
+		let seed = frame >> 1
+		// let size = (1024 * 8) >> (frame >> 5)
+		let rand = hash(seed)
+		// size = (1 << (size & 0x7)) - ((size >> 16) & ((1 << (size & 0x7)) - 1))
+		let size = 1 << (rand & 0x7)
+		if size > 0 {
+			let string = number_to_hex_string_buffer(size, buffer)
+			clear(0)
+			if (rand >> 3) & 0x3 != 0 {
+				text("allocate(", 12, 144)
+				text_sized(string, 11 * 6, 144)
+				text(")", 17 * 6, 144)
+				let address = allocate(size)
+				if address == 0 {
+					text("FAILED", 19 * 6, 144)
+				} else {
+					text("=", 19 * 6, 144)
+					add_to_list(address)
+					text_sized(number_to_hex_string_buffer(address, buffer), 21 * 6, 144)
+					blit0(address - 1, 1, 1, 1, address, size, 1, size) // Stretch meta to fill
+					total = total + (1 << [address - 1])
+				}
+			} else {
+				let address = take_random(seed)
+				if address == 0 {
+					text("deallocate(", 0, 144)
+					let string = number_to_hex_string_buffer(address, buffer)
+					text_sized(string, 11 * 6, 144)
+					text(")", 17 * 6, 144)
+					text("EMPTY", 19 * 6, 144)
+				} else {
+					let size = (1 << [address - 1]) - 1
+					[address] = 0
+					text("deallocate(", 0, 144)
+					let string = number_to_hex_string_buffer(address, buffer)
+					text_sized(string, 11 * 6, 144)
+					text(")", 17 * 6, 144)
+					text("=", 19 * 6, 144)
+					text_sized(number_to_hex_string_buffer(size, buffer), 21 * 6, 144)
+					blit0(address, 1, 1, 0, address + 1, size, 1, 0)
+					deallocate(address)
+					total = total - (size + 1)
+				}
+			}
+			text_sized(number_to_hex_string_buffer(total, buffer), 0, 156)
+			text(" bytes", 6 * 6, 156)
+			blit0(HEAP_START, 256, 128, 256, FRAMEBUFFER, 256, 128, 320) // Render meta
+			blit0(0xF80000 - 256 * 8, 256, 8, 256, FRAMEBUFFER + 320 * 172, 256, 8, 320) // Render meta
+		}
+		text_sized(number_to_hex_string_buffer(frame >> 0, buffer), 256, 0)
+	}
+	frame = frame + 1
+}

@@ -1,0 +1,40 @@
+boot {
+	let frame = 0
+
+	init() {}
+	deinit() {}
+	draw() {
+		if boot::frame > 10 {
+			text::text("Kitty24 0.1.0", 0, 0)
+		}
+		if boot::frame > 20 {
+			if boot::frame < 50 {
+				text::text("Processor: ...", 0, 12)
+			} else {
+				text::text("Processor: KT24 - 62'914'560 Hz", 0, 12)
+			}
+		}
+		if boot::frame > 60 {
+			if boot::frame < 110 {
+				text::text("Memory: ...", 0, 24)
+			} else {
+				text::text("Memory: 16'777'216 bytes", 0, 24)
+			}
+		}
+		if boot::frame > 120 {
+			let x, y =
+				math::sin8(boot::frame * 4) >> 6,
+				math::sin8(boot::frame * 4 + 64) >> 6
+			blit::palette(3, (boot::frame >> 2) & 0x0F)
+			text::text("Nya~!", 1 + x, 37 + y)
+			blit::palette(3, 3)
+			text::text("Nya~!", 0 + x, 36 + y)
+		}
+		if boot::frame == 180 {
+			set_state(STATE_LIST)
+			boot::frame = 0
+		} else {
+			boot::frame = boot::frame + 1
+		}
+	}
+}

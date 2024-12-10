@@ -1,0 +1,131 @@
+editor_text_left() {
+	let x = [cursor]
+	if x > 0 {
+		[cursor] = x - 1
+	}
+	clamp_cursor()
+}
+
+editor_text_up() {
+	let y = [cursor + 1]:2
+	if y > 0 {
+		[cursor + 1]:2 = y - 1
+	}
+	clamp_cursor()
+}
+
+editor_text_right() {
+	[cursor] = [cursor] + 1
+	clamp_cursor()
+}
+
+editor_text_down() {
+	[cursor + 1]:2 = [cursor + 1]:2 + 1
+	clamp_cursor()
+}
+
+// Remove a character left of the cursor.
+editor_text_backspace() {
+	let column, row = [cursor], [cursor + 1]:2
+	if column == 0 {
+		if row > 0 {
+			// Join the two lines.
+			let joiner_pointer = [editor_lines + 3 + (row - 1) * 3]:3
+			let joiner_length = [joiner_pointer]:3
+			let joinee_pointer = [editor_lines + 3 + row * 3]:3
+			let joinee_length = [joinee_pointer]:3
+			if joinee_length > 0 {
+				memcopy(joinee_pointer + 3, joiner_pointer + 3 + joiner_length, joinee_length)
+				[joiner_pointer]:3 = joiner_length + joinee_length
+			}
+			// Remove the original line we just cloned and joined.
+			let editor_lines_count = [editor_lines]:3
+			let editor_lines_offset_length = editor_lines_count * 3 - row * 3 + 3
+			let buffer = allocate(editor_lines_offset_length)
+			memcopy(
+				editor_lines + 3 + (row + 1) * 3,
+				buffer,
+				editor_lines_offset_length
+			)
+			memcopy(
+				buffer,
+				editor_lines + 3 + row * 3,
+				editor_lines_offset_length
+			)
+			deallocate(buffer)
+			[editor_lines]:3 = editor_lines_count - 1
+			// Set the cursor to where the lines joined
+			[cursor + 1]:2 = row - 1
+			[cursor] = joiner_length
+			// TODO: Deallocate the string that was removed from editor_lines
+		}
+	} else {
+		let entry_pointer = [editor_lines + 3 + row * 3]:3
+		let length = [entry_pointer]:3
+		let buffer = allocate(EDITOR_MAX_LINE_LENGTH + 3)
+		if buffer != 0 {
+			memcopy(entry_pointer + 3, buffer, length)
+			memcopy(buffer + column, entry_pointer + 3 + column - 1, length - column)
+			deallocate(buffer, EDITOR_MAX_LINE_LENGTH + 3)
+			[entry_pointer]:3 = length - 1
+		}
+		[cursor] = column - 1
+	}
+	clamp_cursor()
+}
+
+// Split the current line in two.
+editor_text_return() {
+	let column, row = [cursor], [cursor + 1]:2
+	if column == 0 {
+		// We're at the beginning of a line, so just spawn empty line above.
+		let line_entry_pointer_address = editor_lines + 3 + row * 3
+		let buffer = allocate(EDITOR_MAX_LINES + 3)
+		if buffer != 0 {
+			let line_count = [editor_lines]:3
+			memcopy(line_entry_pointer_address, buffer, line_count * 3 - row * 3)
+			memcopy(buffer, line_entry_pointer_address + 3, line_count * 3 - row * 3)
+			[line_entry_pointer_address]:3 = allocate(EDITOR_MAX_LINE_LENGTH + 3)
+			[[line_entry_pointer_address]:3]:3 = 0
+			[editor_lines]:3 = [editor_lines]:3 + 1
+			deallocate(buffer, EDITOR_MAX_LINES + 3)
+			[cursor + 1]:2 = [cursor + 1]:2 + 1
+		}
+		
+	} else {
+		let line_pointer = editor_lines + 3 + row * 3
+		let line = [line_pointer]:3
+		let line_length = [line]:3
+		let line_count = [editor_lines]:3
+		if column >= line_length {
+			// We're at the end of a line, so just spawn empty line below.
+			let buffer = allocate(EDITOR_MAX_LINES + 3)
+			memcopy(line_pointer + 3, buffer, line_count * 3 - row * 3)
+			memcopy(buffer, line_pointer + 6, line_count * 3 - row * 3)
+			deallocate(buffer)
+			[line_pointer + 3]:3 = allocate(EDITOR_MAX_LINE_LENGTH + 3)
+			[[line_pointer + 3]:3]:3 = 0
+			[editor_lines]:3 = [editor_lines]:3 + 1
+			[cursor + 1]:2 = [cursor + 1]:2 + 1
+
+		} else {
+			// Spawn line pointer copy.
+			let buffer = allocate(EDITOR_MAX_LINES + 3)
+			memcopy(line_pointer + 3, buffer, line_count * 3 - row * 3)
+			memcopy(buffer, line_pointer + 6, line_count * 3 - row * 3)
+			deallocate(buffer)
+			let old_line_length = column
+			let new_line_length = line_length - column
+			[line_pointer + 3]:3 = allocate(EDITOR_MAX_LINE_LENGTH + 3)
+			[editor_lines]:3 = [editor_lines]:3 + 1
+			// Set the new lengths of the split lines.
+			[[line_pointer]:3]:3 = old_line_length
+			[[line_pointer + 3]:3]:3 = new_line_length
+			// Copy the right part of the old line to the new line.
+			memcopy([line_pointer]:3 + 3 + column, [line_pointer + 3]:3 + 3, new_line_length)
+			[cursor] = 0
+			[cursor + 1]:2 = [cursor + 1]:2 + 1
+		}
+	}
+	clamp_cursor()
+}

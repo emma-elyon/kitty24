@@ -1,0 +1,40 @@
+const FRAMEBUFFER = 0xFF0000
+
+let angle = 0
+
+main() {
+	init_sin8()
+	loop { }
+}
+
+VERTICAL_BLANK!() {
+	clear(240)
+
+	let angle_delta = 0
+	while angle_delta < 256 {
+		let x = (sin8(angle + angle_delta + 64) >> 1) + 96
+		let y = (sin8(angle + angle_delta) >> 1) + 12
+		sprite(/sonic, x, y, 24, 32)
+		angle_delta = angle_delta + 16
+	}
+	
+	angle = angle + 1
+}
+
+sprite(address, x, y, width, height) {
+	let dy = y
+	let sprite_index = 0
+	while dy < y + height {
+		let dx = x
+		while dx < x + width {
+			let framebuffer_index = dy * 320 + dx
+			let pixel = [address + sprite_index]
+			if 0 < pixel {
+				[FRAMEBUFFER + framebuffer_index] = pixel + 240
+			}
+			sprite_index = sprite_index + 1
+			dx = dx + 1
+		}
+		dy = dy + 1
+	}
+}

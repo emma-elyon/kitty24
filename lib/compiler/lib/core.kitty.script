@@ -1,0 +1,110 @@
+const HEAP_HEAD = 0x800000
+// const HEAP_START = 0x800003
+const HEAP_END = 0xF80000
+
+// Buddy block allocator, ~1 byte per node (1 bit free-flag and 5 bit logsize)
+const HEAP_START = 0x800000
+const HEAP_SIZE_LOG2 = 22
+const HEAP_END = HEAP_START + (1 << HEAP_SIZE_LOG2)
+const HEAP_MIN_BITS = 6
+const FREE_FLAG = 0b10000000
+const SIZE_MASK = 0b01111111
+
+init_allocator() {
+	[HEAP_START] = HEAP_SIZE_LOG2 | FREE_FLAG
+}
+
+allocate(requested_size) {
+	requested_size = requested_size + 1
+	let requested_size_next_pow2 = next_pow2(requested_size)
+	let address = HEAP_START
+	while address != 0 && address < HEAP_START + (1 << HEAP_SIZE_LOG2) {
+		let block = [address]
+		let block_size_log2 = block & SIZE_MASK
+		let block_size = 1 << block_size_log2
+		let is_free = block & FREE_FLAG
+		let is_big = block_size >= requested_size_next_pow2
+		let is_small = block_size <= requested_size_next_pow2
+		if is_free && is_big && is_small {
+			[address] = block_size_log2 // & SIZE_MASK
+			return address + 1
+		} else if is_free && !is_small {
+			let new_size_log2 = block_size_log2 - 1
+			let new_size = 1 << new_size_log2
+			let buddy = address + new_size
+			[address] = new_size_log2 | FREE_FLAG
+			[buddy] = new_size_log2 | FREE_FLAG
+		} else if !is_big && is_small {
+			address = address + requested_size_next_pow2
+		} else {
+			address = address + block_size
+		}
+	}
+	0
+}
+
+deallocate(address) {
+	address = address - 1 // The block logsize data takes one byte
+	let block_size_log2 = [address] & SIZE_MASK
+	let block_size = 1 << block_size_log2
+	[address] = block_size_log2 | FREE_FLAG
+	
+	// Check if buddy block is also free
+	let buddy = address ^ block_size
+	let buddy_is_free = [buddy] & FREE_FLAG
+	while buddy_is_free && block_size_log2 < HEAP_SIZE_LOG2 {
+		// Merge into the leftmost block
+		let buddy_is_left = address & block_size
+		if buddy_is_left {
+			address = buddy
+		}
+		block_size_log2 = block_size_log2 + 1
+		block_size = 1 << block_size_log2
+		[address] = block_size_log2 | FREE_FLAG
+		buddy = address ^ block_size
+		buddy_is_free = [buddy] & FREE_FLAG
+	}
+}
+
+allocate_helper(requested_size_next_pow2, address) {
+	if address >= HEAP_START + (1 << HEAP_SIZE_LOG2) {
+		return 0
+	}
+	
+	while address != 0 && address < HEAP_START + (1 << HEAP_SIZE_LOG2) {
+		let block = [address]
+		let block_size_log2 = block & SIZE_MASK
+		let block_size = 1 << block_size_log2
+
+		let is_free = block & FREE_FLAG
+		let is_big = block_size >= requested_size_next_pow2
+		let is_small = block_size - 1 < requested_size_next_pow2
+
+		if is_free && is_big && is_small {
+			[address] = block_size_log2 // & SIZE_MASK
+			return address + 1
+		} else if is_free && !is_small {
+			let new_size_log2 = block_size_log2 - 1
+			let new_size = 1 << new_size_log2
+			let buddy = address + new_size
+			[address] = new_size_log2 | FREE_FLAG
+			[buddy] = new_size_log2 | FREE_FLAG
+		} else if !is_big && is_small {
+			address = address + requested_size_next_pow2
+		} else {
+			address = address + block_size
+		}
+	}
+	0
+}
+
+next_pow2(n) {
+	n = n - 1
+	n = n | (n >> 1)
+	n = n | (n >> 2)
+	n = n | (n >> 4)
+	n = n | (n >> 8)
+	n = n | (n >> 16)
+	n = n + 1
+	n
+}

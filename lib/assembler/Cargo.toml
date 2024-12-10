@@ -1,0 +1,13 @@
+[package]
+name = "assembler"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+pest = "2.5.7"
+pest_derive = "2.5.7"
+common = { path = "../common" }
+
+[profile.dev]
+opt-level = 1
+overflow-checks = false

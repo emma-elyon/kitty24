@@ -1,0 +1,47 @@
+const FRAMEBUFFER = 0xFF0000
+const COUNTER = 0x900000
+
+let counter = 0
+
+main() {
+	loop { }
+}
+
+VERTICAL_BLANK!() {
+	clear(0)
+
+	print(/hello, 16, 16)
+}
+
+print(address, x, y) {
+	let char_addr = address
+	let character = [char_addr]
+	let sx = x
+	while 0 < character {
+		let dy = 0
+		let pixel_index = 0
+		let char_offset = /terminess + character * 6 * 12
+		while dy < 12 {
+			let dx = 0
+			let framebuffer_offset = (y + dy) * 320
+			while dx < 6 {
+				let framebuffer_index = x + dx + framebuffer_offset
+				let pixel = [char_offset + pixel_index]
+				if 0 < pixel {
+					[FRAMEBUFFER + framebuffer_index] = pixel + 240
+				}
+				pixel_index = pixel_index + 1
+				dx = dx + 1
+			}
+			dy = dy + 1
+		}
+		char_addr = char_addr + 1
+		character = [char_addr]
+		if character == 10 {
+			x = sx - 6
+			y = y + 12
+		} else {
+			x = x + 6
+		}
+	}
+}

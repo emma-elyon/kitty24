@@ -1,0 +1,81 @@
+// --- Main ---
+let project_name = 0
+
+main() {
+	mem::init_allocator() // YOUUUUU
+	math::init_sin8()
+	project_name = mem::allocate(64)
+	[project_name]:3 = 0
+	set_state(STATE_BOOT)
+	loop {}
+}
+
+// --- State ---
+const STATE_BOOT = 0
+const STATE_LIST = 1
+const STATE_NEW_PROJECT = 2
+const STATE_EDITOR = 3
+let state = 0
+
+set_state(new_state) {
+	if state == STATE_BOOT {
+		// deinit_boot()
+		boot::deinit()
+	} else if state == STATE_LIST {
+		// deinit_list()
+		list::deinit()
+	} else if state == STATE_NEW_PROJECT {
+		deinit_new_project()
+	} else if state == STATE_EDITOR {
+		deinit_editor()
+	}
+	if new_state == STATE_BOOT {
+		boot::init()
+	} else if new_state == STATE_LIST {
+		// init_list()
+		list::init()
+	} else if new_state == STATE_NEW_PROJECT {
+		init_new_project()
+	} else if new_state == STATE_EDITOR {
+		init_editor()
+	}
+	state = new_state
+}
+
+// --- Interrupts ---
+let frame = 0
+VBLANK! {
+	clear(0)
+	
+	if state == STATE_BOOT {
+		boot::draw()
+	} else if state == STATE_LIST {
+		list::draw()
+	} else if state == STATE_NEW_PROJECT {
+		draw_new_project()
+	} else if state == STATE_EDITOR {
+		draw_editor()
+	}
+
+	frame = frame + 1
+}
+
+KEY_DOWN!(key) {
+	if state == STATE_BOOT {
+		set_state(STATE_LIST)
+	} else if state == STATE_LIST {
+		list::key_down(key)
+	} else if state == STATE_NEW_PROJECT {
+		key_down_new_project(key)
+	} else if state == STATE_EDITOR {
+		key_down_editor(key)
+	}
+}
+
+TEXT_INPUT!(character) {
+	if state == STATE_NEW_PROJECT {
+		text_input_new_project(character)
+	} else if state == STATE_EDITOR {
+		text_input_editor(character)
+	}
+}

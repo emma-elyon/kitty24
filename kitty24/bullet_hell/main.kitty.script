@@ -1,0 +1,50 @@
+player {
+	let x = 160
+	let y = 90
+
+	draw() {
+		gfx::sprite(/heart, player::x, player::y, 8, 8)
+	}
+}
+
+enemy {
+	const sizeof = 12
+	
+	new(x, y, vx, vy) {
+		let address = enemies + 2 + [enemies]:2 * enemy::sizeof
+		[address + 0]:3 = x
+		[address + 3]:3 = y
+		[address + 6]:3 = vx
+		[address + 9]:3 = vy
+	}
+}
+
+spawn {
+	const DELAY = 30
+	let timer = 30
+	
+	spawn() {
+		enemy::new(1000, 1000, 10, 10)
+		let length = [enemies]:2
+		[enemies]:2 = length + 1
+	}
+}
+
+let enemies = 0
+
+main() {
+	math::init_sin8()
+	enemies = mem::allocate(2 + 1024 * enemy::sizeof)
+	[enemies]:2 = 0
+	loop {}
+}
+
+VBLANK! {
+	gfx::clear(0)
+	player::draw()
+	spawn::timer = spawn::timer - 1
+	if spawn::timer == 0 {
+		spawn::timer = spawn::DELAY
+		spawn::spawn()
+	}
+}

@@ -1,0 +1,288 @@
+let angle = 0
+let angle2 = 0
+
+const AUDIO = 0xFA0000
+const VOLUME = AUDIO + 0
+const DUTY = AUDIO + 1
+const FREQ_HI = AUDIO + 2
+const FREQ_LO = AUDIO + 3
+
+const NOTES = 0xC00000
+const NOTE_COUNT = 32
+
+const AUDIO1 = 0xFA0010
+const VOLUME1 = AUDIO1 + 0
+const DUTY1 = AUDIO1 + 1
+const FREQ_HI1 = AUDIO1 + 2
+const FREQ_LO1 = AUDIO1 + 3
+
+const NOTES1 = 0xC00100
+const NOTE_COUNT1 = 16
+
+let note = 0
+let vibrato = 0
+let wave = 1
+let saw = 0
+
+main() {
+	[VOLUME] = 0
+	[DUTY] = 96
+	[FREQ_HI] = 60
+	[FREQ_LO] = 0
+
+	[VOLUME1] = 0
+	[DUTY1] = 255
+	[FREQ_HI1] = 60
+	[FREQ_LO1] = 0
+	
+	[NOTES +  0] = 0
+	[NOTES +  1] = 0
+	[NOTES +  2] = 0
+	[NOTES +  3] = 0
+	[NOTES +  4] = 72 // C
+	[NOTES +  5] = 69 // A
+	[NOTES +  6] = 69 // A
+	[NOTES +  7] = 72 // C
+
+	[NOTES +  8] = 71 // B
+	[NOTES +  9] = 71 // B
+	[NOTES + 10] = 72 // C
+	[NOTES + 11] = 71 // B
+	[NOTES + 12] = 71 // B
+	[NOTES + 13] = 67 // G
+	[NOTES + 14] = 67 // G
+	[NOTES + 15] = 67 // G
+
+	[NOTES + 16] = 67 // G
+	[NOTES + 17] = 67 // G
+	[NOTES + 18] = 67 // G
+	[NOTES + 19] = 69 // A
+	[NOTES + 20] = 76 // E
+	[NOTES + 21] = 74 // D
+	[NOTES + 22] = 74 // D
+	[NOTES + 23] = 72 // D
+	
+	[NOTES + 24] = 71 // B
+	[NOTES + 25] = 71 // B
+	[NOTES + 26] = 72 // C
+	[NOTES + 27] = 71 // B
+	[NOTES + 28] = 71 // B
+	[NOTES + 29] = 67 // G
+	[NOTES + 30] = 67 // G
+	[NOTES + 31] = 67 // G
+
+	[NOTES1 + 0] = 65 // F
+	[NOTES1 + 1] = 65 // F
+	[NOTES1 + 2] = 65 // F
+	[NOTES1 + 3] = 65 // F
+	[NOTES1 + 4] = 65 // F
+	[NOTES1 + 5] = 65 // F
+	[NOTES1 + 6] = 65 // F
+	[NOTES1 + 7] = 65 // F
+	
+	[NOTES1 + 8] = 63 // E
+	[NOTES1 + 9] = 63 // E
+	[NOTES1 + 10] = 63 // E
+	[NOTES1 + 11] = 63 // E
+	[NOTES1 + 12] = 63 // E
+	[NOTES1 + 13] = 60 // C
+	[NOTES1 + 14] = 62 // D
+	[NOTES1 + 15] = 63 // E
+
+	init_sin8()
+	loop { }
+}
+
+let frame = 0
+
+VERTICAL_BLANK!() {
+	// block_transfer(0xC00000, 0xFF0000, 320, 180)
+	clear(240)
+	
+	let x = 0
+	let center = ((180 - 128) >> 1)
+	while x < 320 {
+		let a = 0
+		let index_offset = 0
+		let angle_offset = sin8(x * sin8(frame) >> 8)
+		let offset = x + frame + angle_offset
+		while a <= 192 {
+			let y1 = (sin8(offset + a) >> 2) + 32
+			let y2 = (sin8(offset + a + 64) >> 2) + 32
+			if y1 < y2 {
+				vertical_line(x, y1 + center, y2 - y1, 242 + (a >> 6))
+			}
+			a = a + 64
+		}
+		x = x + 1
+	}
+
+	let da = 0
+	while da < 512 {
+		let dx = sin8(da + (angle >> (da >> 8)) + 64)
+		let dy = sin8(da + (angle2 >> (da >> 8))) >> 1
+		sprite(/sonic, 20 + dx, dy, 24, 32)
+		da = da + 3
+	}
+	angle = angle + 3
+	angle2 = angle2 + 5
+
+	sprite(/sonic, 0, 0, 24, 32)
+	let x = sin8(angle + 64) >> 3
+	let y = sin8(angle) >> 3
+	print(/hello, x + 80, y + 70 - 6)
+	print(/hello, x + 81, y + 70 - 6)
+	print2(/hello, 0, 180 - 6)
+
+	while da < 1024 {
+		let dx = sin8(da + (angle >> (da >> 8)) + 64)
+		let dy = sin8(da + (angle2 >> (da >> 8))) >> 1
+		sprite(/sonic, 20 + dx, dy, 24, 32)
+		da = da + 3
+	}
+	
+	// Note
+	let _, mod = div_mod(note >> 4, NOTE_COUNT)
+	let freq = [NOTES + mod]
+	if freq == 0 {
+		// Silence
+		[VOLUME] = 0
+	} else {
+		[VOLUME] = 64
+		[FREQ_HI] = freq - 12
+	}
+	let _, mod = div_mod(note >> 4, NOTE_COUNT1)
+	let freq = [NOTES1 + mod]
+	[VOLUME1] = 255 - (note & 0b111) * 32 // Envelope
+	// [DUTY1] = 255 - saw
+	saw = saw + 1
+	[FREQ_HI1] = freq - 12
+	note = note + 1
+	
+	// Vibrato
+	vibrato = vibrato + (wave * 128)
+	if vibrato >= 65536 { wave = 1 vibrato = 0 }
+	if vibrato >= 256 { wave = -1 vibrato = 256 - 128 }
+	[FREQ_LO] = vibrato >> 1
+	
+	frame = frame + 1
+}
+
+const FRAMEBUFFER = 0xFF0000
+const BLOCK_TRANSFER = 0xFC1200
+
+block_transfer(src_address, dst_address, width, height) {
+	[0xFC1200]:2 = 0
+	[0xFC1202]:2 = width
+	[0xFC1204]:2 = height
+	[0xFC1206]:3 = src_address
+	[0xFC1210]:2 = 320
+	[0xFC1212]:2 = width
+	[0xFC1214]:2 = height
+	[0xFC1216]:3 = dst_address
+}
+
+sprite(address, x, y, width, height) {
+	let dy = y
+	//while dy < y + height {
+		// let dx = x
+		// while dx < x + width {
+		// 	let framebuffer_index = dy * 320 + dx
+		// 	let pixel = [address + sprite_index]
+		// 	if 0 < pixel {
+		// 		[FRAMEBUFFER + framebuffer_index] = pixel + 240
+		// 	}
+		// 	sprite_index = sprite_index + 1
+		// 	dx = dx + 1
+		// }
+		let framebuffer_index = FRAMEBUFFER + dy * 320 + x
+		block_transfer(address, framebuffer_index, width, height)
+		//dy = dy + 1
+		//address = address + width
+	//}
+}
+
+high_resolution() {
+	let i = 0
+	let limit = 320 * 180 >> 3
+	while i < limit {
+		[FRAMEBUFFER + 57600 + i] = 255
+		i = i + 1
+	}
+}
+
+print(address, x, y) {
+	let char_addr = address
+	let character = [char_addr]
+	let sx = x
+	while 0 < character {
+		let dy = 0
+		let byte_index = 0
+		let char_offset = /terminess + character * 6 * 12
+		block_transfer(char_offset, FRAMEBUFFER + x + y * 320, 6, 12)
+		// while dy < 12 {
+		// 	let dx = 0
+		// 	let framebuffer_offset = (y + dy) * 320
+		// 	while dx < 6 {
+		// 		let framebuffer_index = x + dx + framebuffer_offset
+		// 		let pixel = [char_offset + byte_index]
+		// 		if 0 < pixel {
+		// 			[FRAMEBUFFER + framebuffer_index] = pixel + 240
+		// 		}
+		// 		byte_index = byte_index + 1
+		// 		dx = dx + 1
+		// 	}
+		// 	dy = dy + 1
+		// }
+		char_addr = char_addr + 1
+		character = [char_addr]
+		if character == 10 {
+			x = sx - 6
+			y = y + 12
+		} else {
+			x = x + 6
+		}
+	}
+}
+
+print2(address, x, y) {
+	let character_address = address
+	let character = [character_address]
+
+	let sx = x
+	while 0 < character {
+		let dy = 0
+		let byte_index = 0
+		let character_offset = /terminess2 + (character * 6 * 12 >> 2)
+		while dy < 6 {
+			let framebuffer_offset = x + (y + dy) * 320
+			// copy three bytes
+			let pixels = [character_offset + byte_index]:3
+			[FRAMEBUFFER + framebuffer_offset]:3 = pixels
+			let offset = FRAMEBUFFER + 57600
+
+			let dx = 0
+			let framebuffer_index = offset + (dx + framebuffer_offset >> 3)
+			[framebuffer_index] = [framebuffer_index] | (1 << (x + dx & 0b111))
+
+			dx = 1
+			let framebuffer_index = offset + (dx + framebuffer_offset >> 3)
+			[framebuffer_index] = [framebuffer_index] | (1 << (x + dx & 0b111))
+
+			dx = 2
+			let framebuffer_index = offset + (dx + framebuffer_offset >> 3)
+			[framebuffer_index] = [framebuffer_index] | (1 << (x + dx & 0b111))
+
+			byte_index = byte_index + 3
+			dy = dy + 1
+		}
+		character_address = character_address + 1
+		character = [character_address]
+		if character == 10 {
+			x = sx - 3
+			y = y + 6
+		} else {
+			x = x + 3
+		}
+	}
+}

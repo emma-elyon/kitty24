@@ -1,0 +1,29 @@
+let buffer = 0
+main() {
+	init_allocator()
+	buffer = allocate(9)
+	loop {}
+}
+
+let frame = 0
+VBLANK! {
+	if frame & 31 == 0 {
+		// let size = (1024 * 8) >> (frame >> 5)
+		let size = hash(frame >> 5) & 0xFFFF
+		let string = number_to_hex_string_buffer(size, buffer)
+		clear(0)
+		text("allocate(", 0, 144)
+		text_sized(string, 9 * 6, 144)
+		text(")", 15 * 6, 144)
+		if size > 0 {
+			let address = allocate(size)
+			if address == 0 {
+				text("FAILED", 17 * 6, 144)
+			} else {
+				blit0(address - 1, 1, 1, 1, address, size, 1, size) // Stretch meta to fill
+			}
+			blit0(HEAP_START, 256, 128, 256, FRAMEBUFFER, 256, 128, 320) // Render meta
+		}
+	}
+	frame = frame + 1
+}

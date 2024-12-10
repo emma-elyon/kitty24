@@ -1,0 +1,158 @@
+mem {
+	// Memory operations.
+
+	/// Copy a linear block of memory.
+	copy(src_address, dst_address, length) {
+		blit::blit0(
+			src_address,
+			length,
+			1,
+			0,
+			dst_address,
+			length,
+			1,
+			0
+		)
+	}
+	
+	/// Set a linear block of memory to a specific value.
+	set(byte, dst_address, length) {
+		[dst_address] = byte
+		blit::blit0(
+			dst_address,
+			1,
+			1,
+			0,
+			dst_address + 1,
+			length - 1,
+			1,
+			0
+		)
+	}
+	
+	// Allocator.
+
+	const HEAP_START = 0x800000
+	const HEAP_BITS = 22
+	const HEAP_END = mem::HEAP_START + (1 << mem::HEAP_BITS)
+	const HEAP_MIN_BITS = 6
+	const HEAP_FREE_FLAG = 0b10000000
+	const HEAP_SIZE_MASK = 0b00011111
+	
+	let is_initialized = 0
+
+	/// Initialize the heap allocator.
+	///
+	/// Must be called before any calls to mem::allocate and mem::free
+	init_allocator() {
+		if !mem::is_initialized {
+			[mem::HEAP_START] = mem::HEAP_BITS | mem::HEAP_FREE_FLAG
+			mem::is_initialized = 1
+		}
+	}
+
+	allocate(requested_size) {
+		requested_size = requested_size + 1 // Need space for order-byte
+		let requested_block_size = next_pow2(requested_size)
+		let address = mem::HEAP_START
+		while address != 0 && address < mem::HEAP_END {
+			let block = [address]
+			let block_order = block & mem::HEAP_SIZE_MASK
+			let block_size = 1 << block_order
+			let is_free = block & mem::HEAP_FREE_FLAG
+			let is_big = block_size >= requested_block_size
+			let is_small = block_size <= requested_block_size
+			if is_free && is_big && is_small {
+				[address] = block_order // & !mem::HEAP_FREE_MASK
+				return address + 1
+			} else if is_free && !is_small {
+				let new_size_log2 = block_order - 1
+				let new_size = 1 << new_size_log2
+				let buddy = address + new_size
+				[address] = new_size_log2 | mem::HEAP_FREE_FLAG
+				[buddy] = new_size_log2 | mem::HEAP_FREE_FLAG
+			} else if !is_big && is_small {
+				address = address + requested_block_size
+			} else {
+				address = address + block_size
+			}
+		}
+		0
+	}
+	free(address) {
+		address = address - 1 // The block logsize data takes one byte
+		let block_order = [address] & mem::HEAP_SIZE_MASK
+		let block_size = 1 << block_order
+		[address] = block_order | mem::HEAP_FREE_FLAG
+		
+		// Check if buddy block is also free
+		let buddy = address ^ block_size
+		let buddy_is_free = [buddy] & mem::HEAP_FREE_FLAG
+		while buddy_is_free && block_order < mem::HEAP_BITS {
+			// Merge into the leftmost block
+			let buddy_is_left = address & block_size
+			if buddy_is_left {
+				address = buddy
+			}
+			block_order = block_order + 1
+			block_size = 1 << block_order
+			[address] = block_order | mem::HEAP_FREE_FLAG
+			buddy = address ^ block_size
+			buddy_is_free = [buddy] & mem::HEAP_FREE_FLAG
+		}
+	}
+}
+
+block_transfer(src_address, dst_address, width, height) {
+	[BLIT_MODE] = BLIT_8 | BLIT_NO_0
+	[BLIT_SRC_STRIDE]:2 = 0
+	[BLIT_SRC_WIDTH]:2 = width
+	[BLIT_SRC_HEIGHT]:2 = height
+	[BLIT_SRC_ADDRESS]:3 = src_address
+	[BLIT_DST_STRIDE]:2 = 320
+	[BLIT_DST_WIDTH]:2 = width
+	[BLIT_DST_HEIGHT]:2 = height
+	[BLIT_DST_ADDRESS]:3 = dst_address
+}
+
+memcopy(src_address, dst_address, length) {
+	[BLIT_MODE] = BLIT_8 | BLIT_0
+	[BLIT_SRC_STRIDE]:2 = 0
+	[BLIT_SRC_WIDTH]:2 = length
+	[BLIT_SRC_HEIGHT]:2 = 1
+	[BLIT_SRC_ADDRESS]:3 = src_address
+	[BLIT_DST_STRIDE]:2 = 0
+	[BLIT_DST_WIDTH]:2 = length
+	[BLIT_DST_HEIGHT]:2 = 1
+	[BLIT_DST_ADDRESS]:3 = dst_address
+}
+
+blit0(
+	src_address, src_width, src_height, src_stride, 
+	dst_address, dst_width, dst_height, dst_stride
+) {
+	[BLIT_MODE] = BLIT_8 | BLIT_0
+	[BLIT_SRC_STRIDE]:2 = src_stride
+	[BLIT_SRC_WIDTH]:2 = src_width
+	[BLIT_SRC_HEIGHT]:2 = src_height
+	[BLIT_SRC_ADDRESS]:3 = src_address
+	[BLIT_DST_STRIDE]:2 = dst_stride
+	[BLIT_DST_WIDTH]:2 = dst_width
+	[BLIT_DST_HEIGHT]:2 = dst_height
+	[BLIT_DST_ADDRESS]:3 = dst_address
+}
+
+blit2(
+	src_address, src_width, src_height, src_stride, 
+	dst_address, dst_width, dst_height, dst_stride
+) {
+	[BLIT_MODE] = BLIT_2 | BLIT_NO_0
+	[BLIT_SRC_STRIDE]:2 = src_stride
+	[BLIT_SRC_WIDTH]:2 = src_width
+	[BLIT_SRC_HEIGHT]:2 = src_height
+	[BLIT_SRC_ADDRESS]:3 = src_address
+	[BLIT_DST_STRIDE]:2 = dst_stride
+	[BLIT_DST_WIDTH]:2 = dst_width
+	[BLIT_DST_HEIGHT]:2 = dst_height
+	[BLIT_DST_ADDRESS]:3 = dst_address
+}

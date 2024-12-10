@@ -1,0 +1,4 @@
+// --- Library ---
+palette(from, to) {
+	[BLIT_REMAP + from] = to
+}

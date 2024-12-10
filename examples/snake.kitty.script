@@ -1,0 +1,178 @@
+const Field = 0x100000
+const FIELD_WIDTH = 32
+const FIELD_HEIGHT = 32
+const CELL_SIZE = 4
+
+let SnakeX = 16
+let SnakeY = 16
+let SnakeVX = 1
+let SnakeVY = 0
+let SnakeLength = 4
+const Snake = Field + FIELD_WIDTH * FIELD_HEIGHT
+const SIZE_OF_SNAKE = 2
+
+let FRAMES_PER_STEP = 10
+let Frame = 0
+
+let FruitX = 42
+let FruitY = 47
+
+main {
+	init_snake()
+	init_field()
+	loop { }
+}
+
+init_snake {
+	let i = 0
+	while i != SnakeLength {
+		[Snake + i * SIZE_OF_SNAKE] = 16 // X
+		[Snake + i * SIZE_OF_SNAKE + 1] = 16 // Y
+		i = i + 1
+	}
+}
+
+init_field {
+	let y = 0
+	while y != FIELD_HEIGHT {
+		let x = 0
+		while x != FIELD_WIDTH {
+			let offset = x + y * FIELD_WIDTH
+			[Field + offset] = 0
+			x = x + 1
+		}
+		y = y + 1
+	}
+	spawn_fruit()
+}
+
+spawn_fruit {
+	let temp = FruitX
+	FruitX = FruitX + FruitY ^ 12345678
+	FruitY = FruitY - temp ^ 8765432
+	let x = FruitX & FIELD_WIDTH - 1
+	let y = FruitY & FIELD_HEIGHT - 1
+	let offset = x + y * FIELD_WIDTH
+	[Field + offset] = 2
+}
+
+step {
+	// Remove old field snake before stepping.
+	let offset = [Snake] + [Snake + 1] * FIELD_WIDTH
+	let cell = [Field + offset]
+	if cell == 1 {
+		[Field + offset] = 0
+	}
+
+	// Shift old snake parts one down.
+	let i = 1
+	while i != SnakeLength {
+		[Snake + (i - 1) * SIZE_OF_SNAKE] = [Snake + i * SIZE_OF_SNAKE]
+		[Snake + (i - 1) * SIZE_OF_SNAKE + 1] = [Snake + i * SIZE_OF_SNAKE + 1]
+		i = i + 1
+	}
+
+	
+
+	// Update snake queue.
+	[Snake + (SnakeLength - 1) * SIZE_OF_SNAKE] = SnakeX
+	[Snake + (SnakeLength - 1) * SIZE_OF_SNAKE + 1] = SnakeY
+
+	// Update snake position
+	SnakeX = SnakeX + SnakeVX
+	SnakeY = SnakeY + SnakeVY
+
+	// Wrap around
+	if SnakeX > 16384 { // Negative :(
+		SnakeX = FIELD_WIDTH - 1
+	}
+	if SnakeX >= FIELD_WIDTH {
+		SnakeX = 0
+	}
+	if SnakeY > 16384 { // Negative :(
+		SnakeY = FIELD_HEIGHT - 1
+	}
+	if SnakeY >= FIELD_HEIGHT {
+		SnakeY = 0
+	}
+	
+	let offset = SnakeX + SnakeY * FIELD_WIDTH
+	let cell = [Field + offset]
+
+
+	// Draw snake into field if there's nothing there.
+	if cell == 0 {
+		[Field + offset] = 1
+	}
+	
+	// Die and respawn if snake hit itself.
+	if cell == 1 {
+		init_snake()
+		init_field()
+	}
+
+	// Grab fruit in field, if any, and draw snake into field.
+	if cell > 1 {
+		SnakeLength = SnakeLength + 1
+		[Field + offset] = 1
+		spawn_fruit()
+	}
+	
+}
+
+render {
+	clear(240)
+	let y = 0
+	let field_x = 320 - CELL_SIZE * FIELD_WIDTH >> 1
+	let field_y = 180 - CELL_SIZE * FIELD_HEIGHT >> 1
+	rectangle_fill(
+		field_x,
+		field_y,
+		FIELD_WIDTH * CELL_SIZE,
+		FIELD_HEIGHT * CELL_SIZE,
+		241
+	)
+	while y != FIELD_HEIGHT {
+		let x = 0
+		while x != FIELD_WIDTH {
+			let offset = x + y * FIELD_WIDTH
+			let cell = [Field + offset]
+			if cell {
+				let cell_x = x * CELL_SIZE + field_x
+				let cell_y = y * CELL_SIZE + field_y
+				let color = if cell == 1 { 243 } else { 246 }
+				rectangle_fill(cell_x, cell_y, CELL_SIZE, CELL_SIZE, color)
+			}
+			x = x + 1
+		}
+		y = y + 1
+	}
+}
+
+VERTICAL_BLANK!() {
+	Frame = Frame + 1
+	if Frame == FRAMES_PER_STEP {
+		Frame = 0
+		step()
+		render()
+	}
+}
+
+KEY_DOWN!(key) {
+	if key == 65 { // A
+		SnakeVX = 0 - 1
+		SnakeVY = 0
+	}
+	if key == 68 { // D
+		SnakeVX = 1
+		SnakeVY = 0
+	}
+	if key == 83 { // S
+		SnakeVX = 0
+		SnakeVY = 1
+	}
+	if key == 87 { // W
+		SnakeVX = 0
+		SnakeVY = 0 - 1
+	}
+}

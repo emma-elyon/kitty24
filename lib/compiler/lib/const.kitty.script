@@ -1,0 +1,108 @@
+// Hint: set language mode `rust` or `C` in your editor.
+
+// --- INTERRUPTS ---
+const TIMER = 1
+const PCM = 2
+const HBLANK = 3
+const VBLANK  = 4
+const KEY_DOWN = 5
+const KEY_UP = 6
+const TEXT_INPUT = 7
+
+// Deprecated
+const HORIZONTAL_BLANK = 2
+const VERTICAL_BLANK  = 3
+
+// --- IO ---
+const IO_PORT = 0xF00000
+const IO_ADDRESS  = 0xF00003
+const IO_LENGTH  = 0xF00006
+const IO_STATUS  = 0xF00009
+
+const PCM_BUFFER = 0x000040
+
+const RUN = 0x000080
+
+const OPEN = 0x000090
+const READ = 0x000091
+const WRITE = 0x000092
+const READ_META = 0x000098
+
+const CHANGE_DIR = 0x0000A0
+const READ_DIR = 0x0000A1
+const WRITE_DIR = 0x0000A2
+// const MAKE_DIR = 0x0000A1
+
+// Deprecated
+const IO_TYPE = 0xF00000
+const IO_DATA  = 0xF00003
+
+// --- Graphics ---
+const FRAMEBUFFER = 0xFF0000 // FIXME: Should be 0xFB0000 everywhere.
+const HIGH_RES_BUFFER = 0xFFE100 // FIXME: Should be 0xFBE100 everywhere.
+
+// --- Audio ---
+const SQUARE_VOLUME = 0xFA0000
+const SQUARE_DUTY = 0xFA0001
+const SQUARE_FREQ = 0xFA0002
+const SQUARE_TUNE = 0xFA0003
+
+const TRIANGLE_VOLUME  = 0xFA0010
+const TRIANGLE_DUTY    = 0xFA0011
+const TRIANGLE_FREQ = 0xFA0012
+const TRIANGLE_TUNE = 0xFA0013
+
+const WAVE_VOLUME  = 0xFA0020
+const WAVE_DUTY    = 0xFA0021
+const WAVE_FREQ = 0xFA0022
+const WAVE_TUNE = 0xFA0023
+
+const NOISE_VOLUME  = 0xFA0030
+const NOISE_DUTY    = 0xFA0031
+const NOISE_FREQ = 0xFA0032
+const NOISE_TUNE = 0xFA0033
+
+const PCM_VOLUME = 0xFA0040
+// const PCM_DUTY = 0xFA0041
+const PCM_FREQ = 0xFA0042
+const PCM_TUNE = 0xFA0043
+const PCM_ENABLE = 0xFA0044
+
+// Deprecated
+const SQUARE_FREQ_HI = 0xFA0002
+const SQUARE_FREQ_LO = 0xFA0003
+const TRIANGLE_FREQ_HI = 0xFA0012
+const TRIANGLE_FREQ_LO = 0xFA0013
+const WAVE_FREQ_HI = 0xFA0022
+const WAVE_FREQ_LO = 0xFA0023
+const NOISE_FREQ_HI = 0xFA0032
+const NOISE_FREQ_LO = 0xFA0033
+
+
+// --- Input ---
+const KEY_BACKSPACE = 0x08
+const KEY_RETURN = 0x10
+const KEY_ARROW_LEFT = 0x100
+const KEY_ARROW_UP = 0x101
+const KEY_ARROW_RIGHT = 0x102
+const KEY_ARROW_DOWN = 0x103
+const KEY_CTRL_LEFT = 0x104
+
+
+// --- Blit ---
+const BLIT_MODE = 0xF90020
+const BLIT_REMAP = 0xF90200
+const BLIT_SRC_STRIDE = 0xFC1200
+const BLIT_SRC_WIDTH = 0xFC1202
+const BLIT_SRC_HEIGHT = 0xFC1204
+const BLIT_SRC_ADDRESS = 0xFC1206
+const BLIT_DST_STRIDE = 0xFC1210
+const BLIT_DST_WIDTH = 0xFC1212
+const BLIT_DST_HEIGHT = 0xFC1214
+const BLIT_DST_ADDRESS = 0xFC1216 // Write triggers block transfer.
+
+const BLIT_0 = 0b00000000
+const BLIT_NO_0 = 0b00000001
+
+const BLIT_8 = 0b00000000
+const BLIT_2 = 0b00000010

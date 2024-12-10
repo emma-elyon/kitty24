@@ -1,0 +1,11 @@
+main() {
+ init_sin8()
+	loop {}
+}
+
+let frame = 0
+
+VBLANK! {
+ clear(sin8(frame << 2) >> 4)
+ frame = frame + 1
+}

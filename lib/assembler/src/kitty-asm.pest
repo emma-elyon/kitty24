@@ -1,0 +1,176 @@
+WHITESPACE = _{ WHITE_SPACE }
+COMMENT    = _{ ";" ~ (!NEWLINE ~ ANY)* }
+
+/// A program is a list of instructions.
+Program = _{ SOI ~ (Instruction | LabelDefinition)* ~ EOI }
+
+/// 16-bit immediate instruction.
+I = _{ Register ~ "," ~ Value16 }
+
+/// 16-bit immediate branch on non-zero
+IF = _{ (Register ~ ",")? ~ RelativeValue16 }
+
+/// Memory access instruction.
+M = _{ Register ~ ("," ~ Register)? ~ (("," ~ SignedNumber10) ~ ("," ~ Number2)?)? }
+
+/// Register-register instruction.
+R = _{ Register ~ ("," ~ Register){0, 2} ~ ("," ~ Value8)? }
+
+/// Register-register shift instruction.
+RS = _{ Register ~ ("," ~ Register){0, 2} ~ ("," ~ Number5)? }
+
+Instruction = {
+    Or
+  | Nor
+  | And
+  | Xor
+  | Add
+  | Sub
+  | Mul
+  | Shift
+  | Less
+  | SignedLess
+  | If
+  | Let
+  | Load
+  | Store
+  | Pop
+  | Push
+  | Data
+}
+
+Shift = _{
+    ArithmeticShiftRight
+  | ShiftRight
+  | ShiftLeft
+  | RotateRight
+  | RotateLeft
+}
+
+Or                   = { ^"or" ~ R }
+Nor                  = { ^"nor" ~ R }
+And                  = { ^"and" ~ R }
+Xor                  = { ^"xor" ~ R }
+Add                  = { ^"add" ~ R }
+Sub                  = { ^"sub" ~ R }
+Mul                  = { ^"mul" ~ R }
+ArithmeticShiftRight = { ^"ashr" ~ RS }
+ShiftLeft            = { ^"shl" ~ RS }
+ShiftRight           = { ^"shr" ~ RS }
+RotateLeft           = { ^"rotl" ~ RS }
+RotateRight          = { ^"rotr" ~ RS }
+Less                 = { ^"less" ~ R }
+SignedLess           = { ^"sles" ~ R }
+If                   = { ^"if" ~ IF }
+Let                  = { ^"let" ~ I }
+Load                 = { ^"ld" ~ M }
+Store                = { ^"st" ~ M }
+Pop                  = { ^"pop" ~ M }
+Push                 = { ^"push" ~ M }
+Data                 = { ^"data" ~ Hexadecimal08+ }
+
+Register = @{ ^"r" ~ HEX_DIGIT ~ !Label }
+
+RelativeValue16 = _{ Number16 | "." ~ LocalLabel | Label }
+Value16         = _{ Unsigned16 | Label16 }
+Value8          = _{ Number8 | Label8 }
+
+Number16 = {
+    "$" ~ Hexadecimal16
+  | "%" ~ Binary16
+  | SignedDecimal16
+  | Decimal16
+}
+
+Unsigned16 = {
+    "$" ~ Hexadecimal16
+  | "%" ~ Binary16
+  | Decimal16
+}
+
+Number8 = {
+    "$" ~ Hexadecimal8
+  | "%" ~ Binary8 // | SignedDecimal8
+
+  | Decimal8
+}
+
+Number5 = {
+    "$" ~ Hexadecimal5
+  | "%" ~ Binary5
+  | Decimal5
+}
+
+Number2 = {
+    "$" ~ Hexadecimal2
+  | "%" ~ Binary2
+  | Decimal2
+}
+
+SignedNumber10 = _{
+    "$" ~ Hexadecimal10
+  | "%" ~ Binary10
+  | SignedDecimal10
+}
+
+/// Maximum value of 65535
+Decimal16       = @{
+    '1'..'5' ~ ASCII_DIGIT{4}
+  | "6" ~ '0'..'4' ~ ASCII_DIGIT{3}
+  | "65" ~ '0'..'4' ~ ASCII_DIGIT{2}
+  | "655" ~ '0'..'2' ~ ASCII_DIGIT{1}
+  | "6553" ~ '0'..'5'
+  | '1'..'9' ~ ASCII_DIGIT{1, 3}
+  | ASCII_DIGIT
+}
+Decimal8        = @{
+    "25" ~ '0'..'5'
+  | "2" ~ '0'..'4' ~ ASCII_DIGIT
+  | '1'..'9' ~ ASCII_DIGIT{1, 2}
+  | ASCII_DIGIT
+}
+Decimal5        = @{
+    '1'..'2' ~ ASCII_DIGIT
+  | "3" ~ '0'..'1'
+  | ASCII_DIGIT
+}
+Decimal2        = @{ '0'..'3' }
+SignedDecimal16 = @{
+    "-" ~ ('1'..'2' ~ ASCII_DIGIT{4} | "3" ~ '0'..'1' ~ ASCII_DIGIT{3} | "32" ~ '0'..'6' ~ ASCII_DIGIT{2} | "327" ~ '0'..'5' ~ ASCII_DIGIT{1} | "3276" ~ '0'..'8' | '1'..'9' ~ ASCII_DIGIT{1, 3} | ASCII_DIGIT)
+}
+// SignedDecimal8  = @{
+// "-" ~ ("1" ~ ASCII_DIGIT{2} | "2" ~ '0'..'4' ~ ASCII_DIGIT | "25" ~ '0'..'5' | '1'..'9' ~ ASCII_DIGIT | ASCII_DIGIT)
+// }
+SignedDecimal10 = @{
+    ("50" ~ ASCII_DIGIT | "51" ~ '0'..'1' | '1'..'9' ~ ASCII_DIGIT | ASCII_DIGIT)
+  | "-" ~ ("50" ~ ASCII_DIGIT | "51" ~ '0'..'2' | '1'..'9' ~ ASCII_DIGIT | ASCII_DIGIT)
+}
+// SignedDecimal8 = @{
+// (ASCII_DIGIT | '1'..'9' ~ ASCII_DIGIT | "1" ~ '0'..'1' ~ ASCII_DIGIT | "12" ~ '0'..'7')
+// | "-" ~ (ASCII_DIGIT | '1'..'9' ~ ASCII_DIGIT | "1" ~ '0'..'1' ~ ASCII_DIGIT | "12" ~ '0'..'8')
+// }
+Hexadecimal16 = @{ HEX_DIGIT{1, 4} }
+Hexadecimal10 = @{
+    HEX_DIGIT{1, 2}
+  | '0'..'3' ~ HEX_DIGIT{1, 2}
+}
+Hexadecimal08 = @{ HEX_DIGIT{2} }
+Hexadecimal8  = @{ HEX_DIGIT{1, 2} }
+Hexadecimal5  = @{ ('0'..'1')? ~ HEX_DIGIT }
+Hexadecimal2  = @{ ('0'..'3') }
+// Hexadecimal4   = @{ HEX_DIGIT }
+Binary16 = @{ ("0" | "1"){1, 16} }
+Binary10 = @{ ("0" | "1"){1, 10} }
+Binary8  = @{ ("0" | "1"){1, 8} }
+Binary5  = @{ ("0" | "1"){1, 5} }
+Binary2  = @{ ("0" | "1"){1, 2} }
+// Binary         = @{ "0" | "1" }
+
+LabelDefinition =  { ("." ~ LocalLabel | Label) ~ ":" ~ !":" }
+Label16         =  { ("." ~ LocalLabel | Label) ~ "[" ~ (ByteRange | ByteIndex) ~ "]" }
+Label8          =  { ("." ~ LocalLabel | Label) ~ "[" ~ ByteIndex ~ "]" }
+Label           = @{ (ALPHABETIC | "_" | "/") ~ (ALPHABETIC | NUMBER | "_" | "::")* }
+LocalLabel      = @{ (ALPHABETIC | "_" | "/") ~ (ALPHABETIC | NUMBER | "_")* }
+
+ByteIndex = @{ '0'..'2' }
+ByteRange =  { ByteIndex ~ ":" ~ ByteIndex }

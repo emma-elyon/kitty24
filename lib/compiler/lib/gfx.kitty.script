@@ -1,0 +1,161 @@
+gfx {
+	const FRAMEBUFFER = 0xFF0000
+	const WIDTH = 320
+	const HEIGHT = 180
+
+	/// Clear entire screen to one color.
+	// TODO: Use blit0 instead
+	clear(color) asm {
+		; ld   r1, rB, 0  ; color
+		ld   r1, rB, 2, 1  ; color as u8
+		shl  rD, r1, 8  ; color << 8
+		or   rD, rD, r1 ; color << 8 | color
+		shl  rD, rD, 8  ; color << 16 | color << 8
+		or   r1, rD, r1 ; r1 = color << 16 | color << 8 | color
+		let  rD, $FFE1
+		shl  rD, 8
+		let  r2, $FF00
+		shl  r2, 8
+		.do_while:
+			push rD, r1
+			less r3, r2, rD
+			if   r3, .do_while		
+	}
+
+	rectangle_fill(x, y, w, h, color) asm {
+		ld   r5, rB, 12
+		ld   r4, rB, 9
+		ld   r3, rB, 6
+		ld   r2, rB, 3
+		ld   r1, rB, 0
+		let  rD, $FF00
+		shl  rD, 8
+		let  r6, 0 ; dy
+		.do_while:
+			let  r7, 0 ; dx
+			add  r8, r1, rD ; ax
+			add  r9, r2, r6 ; ay
+			push rC, rD
+			let  rD, 320
+			mul  r9, r9, rD
+			.do_while_inner:
+				add   rD, r8, r7
+				add   rD, rD, r9
+				st    rD, r5, 0, 1
+				add   r7, 1 ; dx += 1
+				less  rD, r7, r3
+				if    rD, .do_while_inner
+			add  r6, 1
+			less r7, r6, r4
+			pop  rD, rC
+			if   r7, .do_while
+	}
+	
+	sprite(address, x, y, width, height) {
+		let dst_address = gfx::FRAMEBUFFER + x + y * gfx::WIDTH
+		blit::blit(address, width, height, width, dst_address, width, height, gfx::WIDTH)
+	}
+}
+
+/// Clear entire screen to one color.
+clear(color) asm {
+	; ld   r1, rB, 0  ; color
+	ld   r1, rB, 2, 1  ; color as u8
+	shl  rD, r1, 8  ; color << 8
+	or   rD, rD, r1 ; color << 8 | color
+	shl  rD, rD, 8  ; color << 16 | color << 8
+	or   r1, rD, r1 ; r1 = color << 16 | color << 8 | color
+	let  rD, $FFE1
+	shl  rD, 8
+	let  r2, $FF00
+	shl  r2, 8
+	.do_while:
+		push rD, r1
+		less r3, r2, rD
+		if   r3, .do_while		
+}
+
+/// Fill rectangle with one color.
+rectangle_fill(x, y, w, h, color) asm {
+	ld   r5, rB, 12
+	ld   r4, rB, 9
+	ld   r3, rB, 6
+	ld   r2, rB, 3
+	ld   r1, rB, 0
+	let  rD, $FF00
+	shl  rD, 8
+	let  r6, 0 ; dy
+	.do_while:
+		let  r7, 0 ; dx
+		add  r8, r1, rD ; ax
+		add  r9, r2, r6 ; ay
+		push rC, rD
+		let  rD, 320
+		mul  r9, r9, rD
+		.do_while_inner:
+			add   rD, r8, r7
+			add   rD, rD, r9
+			st    rD, r5, 0, 1
+			add   r7, 1 ; dx += 1
+			less  rD, r7, r3
+			if    rD, .do_while_inner
+		add  r6, 1
+		less r7, r6, r4
+		pop  rD, rC
+		if   r7, .do_while
+}
+
+/// Draw vertical line.
+vertical_line(x, y, h, color) asm {
+	ld   r4, rB, 9 ; color
+	ld   r3, rB, 6 ; h
+	ld   r2, rB, 3 ; y
+	ld   r1, rB, 0 ; x
+    let  rD, $FF00 ; FRAMEBUFFER
+	shl  rD, 8
+	let  r5, 320 ; WIDTH
+	add  r8, r1, rD ; r8 = FRAMEBUFFER + x
+	.do_while:
+        mul  r9, r2, r5 ; r9 = y * WIDTH
+        add  r7, r8, r9 ; r7 = x + y * WIDTH = index
+        st   r7, r4, 0, 1 ; [index] = color
+        add  r2, 1 ; y += 1
+        sub  r3, 1 ; h -= 1
+        if   r3, .do_while
+}
+
+/// Set a region of the framebuffer as high resolution
+// TODO: Actually surgically activate the high resolution bits
+set_high_resolution(x, y, width, height) {
+	let byte = allocate(1)
+	[byte] = 0xFF
+	blit0(byte, 1, 1, 1, HIGH_RES_BUFFER + (x + y * 320 >> 3), width >> 3, height, (320 >> 3))
+	deallocate(byte, 1)
+	// let dy = 0
+	// while dy < height {
+	// 	let dx = 0
+	// 	let y_offset = (y + dy) * 320
+	// 	while dx < width {
+	// 		let x_offset = x + dx
+	// 		[HIGH_RES_BUFFER + (x_offset >> 3) + (y_offset >> 3)] = byte
+	// 		dx = dx + 4
+	// 	}
+	// 	dy = dy + 1
+	// }
+}
+
+// TODO: Use blit0
+set_low_resolution(x, y, width, height) {
+	let byte = 0x00
+	let dy = 0
+	while dy < height {
+		let dx = 0
+		let y_offset = (y + dy) * 320
+		while dx < width {
+			let x_offset = x + dx
+			[HIGH_RES_BUFFER + (x_offset >> 3) + (y_offset >> 3)] = byte
+			dx = dx + 4
+		}
+		dy = dy + 1
+	}
+}

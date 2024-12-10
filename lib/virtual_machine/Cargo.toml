@@ -1,0 +1,13 @@
+[package]
+name = "virtual_machine"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+common = { path = "../common" }
+compiler = { path = "../compiler" }
+assembler = { path = "../assembler" }
+
+[profile.dev]
+opt-level = 1
+overflow-checks = false

@@ -1,0 +1,47 @@
+// Hint: set language mode `C` or `rust` in your editor.
+
+type int = i16
+
+type Vec3 = {
+	x: int,
+	y: int,
+	z: int
+}
+
+type Quat = {
+	x: int,
+	y: int,
+	z: int,
+	w: int
+}
+
+type Transform = {
+	translation: Vec3,
+	rotation: Quat,
+	scale: int
+}
+
+type Tag = i16, i16
+
+type String = [u8] // TODO: Built into the compiler, maybe as `str` or `String`?
+
+type Name = String
+
+main() {
+	let a = int(42)
+	let name = Name("Hello, world~")
+	let next = Name(String([65, 98, 99]))
+	let t = Vec3 {
+		x = 0,
+		y = 0,
+		z = a
+	}
+	let r = Quat { x = 0, y = 0, z = 0, w = 1 }
+	let s = int(3)
+	let tr = Transform {
+		translation = t,
+		rotation = r,
+		scale = s
+	}
+	a
+}

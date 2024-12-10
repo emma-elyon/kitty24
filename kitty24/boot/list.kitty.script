@@ -1,0 +1,356 @@
+list {
+	init() {
+		// Initialize and populate folder list buffer
+		let buffer = mem::allocate(4096)
+		let length = io::read_directory(buffer, 4096)
+		[buffer + length] = 0x00
+		
+		// Parse buffer, and store each folder and rom in their respective lists
+		folder_list = mem::allocate(4096)
+		[folder_list]:3 = 0
+		rom_list = mem::allocate(4096)
+		[rom_list]:3 = 0
+		let entry_address = buffer
+		let char = [entry_address]
+		let meta_buffer = mem::allocate(256)
+
+		while char > 0 {
+			let length = 0
+			while char != '\n' && char != 0 {
+				length = length + 1
+				char = [entry_address + length]
+			}
+			// io(OPEN, entry_address, length)
+			let entry_name = allocate(length + 3)
+			[entry_name]:3 = length
+			mem::copy(entry_address, entry_name + 3, length)
+			io::open(entry_name)
+			let meta_length = io::read_metadata(meta_buffer, 256)
+			if [meta_buffer] == 'D' {
+				// If we get a folder, add it to the folder list
+				let destination = folder_list + folder_length
+				[destination]:3 = length
+				mem::copy(entry_address, destination + 3, length)
+				folder_length = folder_length + length + 3
+				folder_count = folder_count + 1
+			} else if [meta_buffer] == 'F' {
+				// If we get a file, add it to the file list if it ends with .kitty
+				if
+					[entry_address + length - 6]:3 == '.ki' &&
+					[entry_address + length - 3]:3 == 'tty'
+				{
+					let destination = rom_list + rom_length
+					[destination]:3 = length
+					mem::copy(entry_address, destination + 3, length)
+					rom_length = rom_length + length + 3
+					rom_count = rom_count + 1
+				}
+			}
+			entry_address = entry_address + length
+			char = [entry_address]
+			while char == '\n' {
+				entry_address = entry_address + 1
+				char = [entry_address]			
+			}
+		}
+		mem::free(meta_buffer, 256)
+		
+		mem::free(buffer, 4096)
+
+		set_high_resolution(0, 12, 320, 180 - 12)
+	}
+	
+	deinit() {
+		folder_count = 0
+		rom_count = 0
+
+		set_low_resolution(0, 12, 320, 180 - 12)
+
+		// deallocate(new_project_sized, 14 + 3)
+
+		// For some reason, this is quite slow? Or at least, it messes up the
+		// `set_low_resolution` call a bit
+		deallocate(folder_list)
+		deallocate(rom_list)
+	}
+
+	draw() {
+		rectangle_fill(0, 0, 160, 12, 14)
+		text::text("Projects", (160 >> 1) - (7 * 6 >> 1), 0)
+		rectangle_fill(160, 0, 160, 12, 7)
+		text::text("ROMs", 160 + (160 >> 1) - (4 * 6 >> 1), 0)
+		list::draw_lists()
+	}
+
+	key_down(key) {
+		if key == KEY_RETURN {
+			// Compile and run folder, or run ROM
+			if select == 0 {
+				// New project.
+				set_state(STATE_NEW_PROJECT)
+
+			} else if select < folder_count + 1 {
+				// Folder.
+				let offset = 0
+				let i = 1
+				while i < select {
+					let length = [folder_list + offset]:3
+					offset = offset + length + 3
+					i = i + 1
+				}
+				let file_name = folder_list + offset
+				let length = [file_name]:3
+				mem::copy(file_name, project_name, length + 3)
+				// io(CHANGE_DIR, file_name + 3, length)
+				io::change_directory(file_name)
+				set_state(STATE_EDITOR)
+				// io(RUN, file_name + 3, length)
+			} else {
+				// ROM.
+				let offset = 0
+				let i = folder_count + 1
+				while i < select {
+					let length = [rom_list + offset]:3
+					offset = offset + length + 3
+					i = i + 1
+				}
+				let file_name = rom_list + offset
+				// let length = [file_name]:3
+				io::run(file_name)
+				// io(RUN, file_name + 3, length)
+			}
+		} else if key == KEY_ARROW_UP {
+			if select > 0 {
+				select = select - 1
+			}
+		} else if key == KEY_ARROW_DOWN {
+			if select + 1 < folder_count + rom_count + 1 {
+				select = select + 1
+			}
+		} else if key == KEY_ARROW_LEFT {
+			if select >= folder_count + 1 {
+				select = select - folder_count - 1
+			}
+		} else if key == KEY_ARROW_RIGHT {
+			if select < folder_count + 1 {
+				select = select + folder_count + 1
+				if select > folder_count + rom_count {
+					select = folder_count + rom_count
+				}
+			}
+		}
+	}
+
+	draw_lists() {
+		if select == 0 {
+			palette(0, 2)
+			palette(3, 0)
+			text::text2("New project...", 6, 18)
+			palette(0, 0)
+			palette(3, 3)
+		} else {
+			palette(3, 2)
+			text::text2("New project...", 6, 18)
+			palette(3, 3)
+		}
+
+		if folder_count > 0 {
+			let entry_address = folder_list
+			let y = 18 + 6
+			let i = 0 + 1
+			while entry_address < folder_list + folder_length {
+				if select == i {
+					palette(0, 3)
+					palette(3, 0)
+					text::text2(entry_address, 6, y)
+					palette(0, 0)
+					palette(3, 3)
+				} else {
+					text::text2(entry_address, 6, y)
+				}
+				let entry_length = [entry_address]:3
+				entry_address = entry_address + entry_length + 3
+				y = y + 6
+				i = i + 1
+			}
+		}
+		
+		if rom_count > 0 {
+			let entry_address = rom_list
+			let y = 18
+			let i = folder_count + 1
+			while entry_address < rom_list + rom_length {
+				if select == i {
+					palette(0, 3)
+					palette(3, 0)
+					text::text2(entry_address, 160 + 6, y)
+					palette(0, 0)
+					palette(3, 3)
+				} else {
+					text::text2(entry_address, 160 + 6, y)
+				}
+				let entry_length = [entry_address]:3
+				entry_address = entry_address + entry_length + 3
+				y = y + 6
+				i = i + 1
+			}
+		}
+	}
+}
+
+// --- List ---
+let folder_list = 0
+let folder_length = 0
+let folder_count = 0
+let rom_list = 0
+let rom_length = 0
+let rom_count = 0
+let select = 0
+// let new_project_sized = 0
+// init_list() {
+// 	// Size up the "New project..." string, for text_with_size2()
+// 	// let new_project_string = "New project..."
+// 	// new_project_sized = allocate(14 + 3)
+// 	// memcopy(new_project_string, new_project_sized + 3, 14)
+// 	// [new_project_sized]:3 = 14
+// 	new_project_sized = "New project..."
+
+// 	// Initialize and populate folder list buffer
+// 	let buffer = allocate(4096)
+// 	// let length = io(READ_DIR, buffer, 4096)
+// 	let length = io::read_directory(buffer, 4096)
+// 	[buffer + length] = 0x00
+
+	
+// 	// Parse buffer, and store each folder and rom in their respective lists
+// 	folder_list = allocate(4096)
+// 	[folder_list]:3 = 0
+// 	rom_list = allocate(4096)
+// 	[rom_list]:3 = 0
+// 	let entry_address = buffer
+// 	let char = [entry_address]
+// 	let meta_buffer = allocate(256)
+
+// 	while char > 0 {
+// 		let length = 0
+// 		while char != '\n' && char != 0 {
+// 			length = length + 1
+// 			char = [entry_address + length]
+// 		}
+// 		// io(OPEN, entry_address, length)
+// 		let entry_name = allocate(length + 3)
+// 		[entry_name]:3 = length
+// 		mem::copy(entry_address, entry_name + 3, length)
+// 		io::open(entry_name)
+// 		let meta_length = io::read_metadata(meta_buffer, 256)
+// 		if [meta_buffer] == 'D' {
+// 			// If we get a folder, add it to the folder list
+// 			let destination = folder_list + folder_length
+// 			[destination]:3 = length
+// 			mem::copy(entry_address, destination + 3, length)
+// 			folder_length = folder_length + length + 3
+// 			folder_count = folder_count + 1
+// 		} else if [meta_buffer] == 'F' {
+// 			// If we get a file, add it to the file list if it ends with .kitty
+// 			if
+// 				[entry_address + length - 6]:3 == '.ki' &&
+// 				[entry_address + length - 3]:3 == 'tty'
+// 			{
+// 				let destination = rom_list + rom_length
+// 				[destination]:3 = length
+// 				mem::copy(entry_address, destination + 3, length)
+// 				rom_length = rom_length + length + 3
+// 				rom_count = rom_count + 1
+// 			}
+// 		}
+// 		entry_address = entry_address + length
+// 		char = [entry_address]
+// 		while char == '\n' {
+// 			entry_address = entry_address + 1
+// 			char = [entry_address]			
+// 		}
+// 	}
+// 	deallocate(meta_buffer, 256)
+	
+// 	deallocate(buffer, 4096)
+
+// 	set_high_resolution(0, 12, 320, 180 - 12)
+// }
+
+// deinit_list() {
+// 	folder_count = 0
+// 	rom_count = 0
+
+// 	set_low_resolution(0, 12, 320, 180 - 12)
+
+// 	deallocate(new_project_sized, 14 + 3)
+
+// 	// For some reason, this is quite slow? Or at least, it messes up the
+// 	// `set_low_resolution` call a bit
+// 	deallocate(folder_list)
+// 	deallocate(rom_list)
+// }
+
+// draw_list() {
+// 	rectangle_fill(0, 0, 160, 12, 14)
+// 	text::text("Projects", (160 >> 1) - (7 * 6 >> 1), 0)
+// 	rectangle_fill(160, 0, 160, 12, 7)
+// 	text::text("ROMs", 160 + (160 >> 1) - (4 * 6 >> 1), 0)
+// 	draw_lists()
+// }
+
+draw_lists() {
+	if select == 0 {
+		palette(0, 2)
+		palette(3, 0)
+		text::text2("New project...", 6, 18)
+		palette(0, 0)
+		palette(3, 3)
+	} else {
+		palette(3, 2)
+		text::text2("New project...", 6, 18)
+		palette(3, 3)
+	}
+
+	if folder_count > 0 {
+		let entry_address = folder_list
+		let y = 18 + 6
+		let i = 0 + 1
+		while entry_address < folder_list + folder_length {
+			if select == i {
+				palette(0, 3)
+				palette(3, 0)
+				text::text2(entry_address, 6, y)
+				palette(0, 0)
+				palette(3, 3)
+			} else {
+				text::text2(entry_address, 6, y)
+			}
+			let entry_length = [entry_address]:3
+			entry_address = entry_address + entry_length + 3
+			y = y + 6
+			i = i + 1
+		}
+	}
+	
+	if rom_count > 0 {
+		let entry_address = rom_list
+		let y = 18
+		let i = folder_count + 1
+		while entry_address < rom_list + rom_length {
+			if select == i {
+				palette(0, 3)
+				palette(3, 0)
+				text::text2(entry_address, 160 + 6, y)
+				palette(0, 0)
+				palette(3, 3)
+			} else {
+				text::text2(entry_address, 160 + 6, y)
+			}
+			let entry_length = [entry_address]:3
+			entry_address = entry_address + entry_length + 3
+			y = y + 6
+			i = i + 1
+		}
+	}
+}

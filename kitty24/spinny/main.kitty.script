@@ -1,0 +1,14 @@
+main() {
+	init_sin8()
+ loop {}
+}
+
+let frame = 0
+
+VBLANK! {
+ clear(0)
+ let x = sin8(frame) + (320 >> 1) - 128
+ let y = (sin8(frame + 64) >> 1) + (180 >> 1) - 64
+ rectangle_fill(x, y, 1, 1, 3)
+ frame = frame + 1
+}

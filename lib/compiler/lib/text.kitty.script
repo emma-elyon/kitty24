@@ -1,0 +1,188 @@
+text {
+	text(string, x, y) {
+		let length = [string]:3
+		let char_addr = string + 3
+		let character = [char_addr]
+		let sx = x
+		let i = 0
+		while i < length {
+			let char_offset = /terminess + character * 6 * 12 // 6 * 12
+			block_transfer(char_offset, FRAMEBUFFER + x + y * 320, 6, 12)
+
+			char_addr = char_addr + 1
+			character = [char_addr]
+			if character == '\n' {
+				x = sx - 6
+				y = y + 12
+			} else {
+				x = x + 6
+			}
+			
+			i = i + 1
+		}
+		if x < sx {
+			x = sx
+		}
+		x, y
+	}
+
+	text2(string, x, y) {
+		let length = [string]:3
+		let char_addr = string + 3
+		let character = [char_addr]
+		let sx = x
+		let i = 0
+		while i < length {
+			let char_offset = /terminess2 + character * 3 * 6
+			if character == '\n' {
+				x = sx - 3
+				y = y + 6
+			} else if character == '\t' {
+				x = x + 3 // + 3, TODO: Wider, but that makes editor cursor hard
+			} else {
+				blit2(char_offset, 3, 6, 3, FRAMEBUFFER + x + y * 320, 3, 6, 320)
+				x = x + 3
+			}
+
+			i = i + 1
+			character = [char_addr + i]
+		}
+		if x < sx {
+			x = sx
+		}
+	}
+}
+
+text(address, x, y) {
+	let char_addr = address
+	let character = [char_addr]
+	let sx = x
+	while 0 < character {
+		let char_offset = /terminess + character * 6 * 12 // 6 * 12
+		block_transfer(char_offset, FRAMEBUFFER + x + y * 320, 6, 12)
+
+		char_addr = char_addr + 1
+		character = [char_addr]
+		if character == '\n' {
+			x = sx - 6
+			y = y + 12
+		} else {
+			x = x + 6
+		}
+	}
+	if x < sx {
+		x = sx
+	}
+	x, y
+}
+
+text_sized(address, x, y) {
+	let length = [address]:3
+	let char_addr = address + 3
+	let character = [char_addr]
+	let sx = x
+	let i = 0
+	while i < length {
+		let char_offset = /terminess + character * 6 * 12 // 6 * 12
+		block_transfer(char_offset, FRAMEBUFFER + x + y * 320, 6, 12)
+
+		char_addr = char_addr + 1
+		character = [char_addr]
+		if character == '\n' {
+			x = sx - 6
+			y = y + 12
+		} else {
+			x = x + 6
+		}
+		
+		i = i + 1
+	}
+	if x < sx {
+		x = sx
+	}
+	x, y
+}
+
+text2(address, x, y) {
+	let char_addr = address
+	let character = [char_addr]
+	let sx = x
+	while 0 < character {
+		let char_offset = /terminess2 + character * 3 * 6 // 3 * 6 == width * height
+		blit2(char_offset, 3, 6, 3, FRAMEBUFFER + x + y * 320, 3, 6, 320)
+		
+		char_addr = char_addr + 1
+		character = [char_addr]
+		if character == '\n' {
+			x = sx - 3
+			y = y + 6
+		} else {
+			x = x + 3
+		}
+	}
+	if x < sx {
+		x = sx
+	}
+}
+
+text_with_size2(address, x, y) {
+	let length = [address]:3
+	let char_addr = address + 3
+	let character = [char_addr]
+	let sx = x
+	let i = 0
+	while i < length {
+		let char_offset = /terminess2 + character * 3 * 6 // 3 * 6 == width * height
+		// block_transfer(char_offset, FRAMEBUFFER + x + y * 320, 3, 6)
+		if character == '\n' { // TODO: TAB
+			x = sx - 3
+			y = y + 6
+		} else if character == '\t' {
+			x = x + 3 // + 3, TODO: Wider, but that makes editor cursor hard
+		} else {
+			blit2(char_offset, 3, 6, 3, FRAMEBUFFER + x + y * 320, 3, 6, 320)
+			x = x + 3
+		}
+
+		i = i + 1
+		character = [char_addr + i]
+	}
+	if x < sx {
+		x = sx
+	}
+}
+
+number_to_hex_string(number) {
+	let string = allocate(6 + 3)
+	if string == 0 {
+		return 0
+	}
+	[string]:3 = 6
+	[string + 3]:3 = '000'
+	[string + 6]:3 = '000'
+	let i = 8
+	while number > 0 {
+		let digit = number & 0xF
+		[string + i] = if digit < 0xA { digit + '0' } else { digit - 0xA + 'A' }
+		number = number >> 4
+		i = i - 1
+	}
+	string
+}
+
+number_to_hex_string_buffer(number, buffer) {
+	// if buffer == 0 {
+	// 	return 0
+	// }
+	[buffer]:3 = 6
+	[buffer + 3]:3 = '000'
+	[buffer + 6]:3 = '000'
+	let i = 8
+	while number > 0 {
+		let digit = number & 0xF
+		[buffer + i] = if digit < 0xA { digit + '0' } else { digit - 0xA + 'A' }
+		number = number >> 4
+		i = i - 1
+	}
+	buffer
+}

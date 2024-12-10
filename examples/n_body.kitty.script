@@ -1,0 +1,85 @@
+// Hint: set language mode `C` or `rust` in your editor.
+const FRAMEBUFFER = 0xFF0000
+
+const Particles = 0x800000 // 0x800000
+const PARTICLE_COUNT = 64
+const PARTICLE_SIZE = 12
+
+main() {
+	clear(240)
+	let i = 0
+	while i < PARTICLE_COUNT {
+		[Particles + i * PARTICLE_SIZE]:3 = i * 1200 + (40 << 8)
+		[Particles + i * PARTICLE_SIZE + 3]:3 = i * 600 + (20 << 8)
+		i = i + 1
+	}
+	loop { }
+}
+
+VERTICAL_BLANK!() {
+	clear(240)
+
+	// Render particles.
+	let i = 0
+	while i < PARTICLE_COUNT {
+		let index = Particles + i * PARTICLE_SIZE
+		let x = [index]:3 >> 8
+		let y = [index + 3]:3 >> 8
+		[FRAMEBUFFER + x + y * 320] = 243
+		i = i + 1
+	}
+
+	// Attract particles.
+	let a = 0
+	while a < PARTICLE_COUNT {
+		let ai = Particles + a * PARTICLE_SIZE
+		let ax = [ai]:3 >> 8
+		let ay = [ai + 3]:3 >> 8
+		let b = a + 1
+		while b < PARTICLE_COUNT {
+			let bi = Particles + b * PARTICLE_SIZE
+			let bx = [bi]:3 >> 8
+			let by = [bi + 3]:3 >> 8
+			let delta_x = bx - ax
+			let delta_y = by - ay
+			let div, mod = div_mod(65536, delta_x * delta_x + delta_y * delta_y)
+			if div > 256 {
+				div = 256
+			}
+			let signed_x = if bx > ax { div } else { if bx == ax { 0 } else { -div } }
+			let signed_y = if by > ay { div } else { if by == ay { 0 } else { -div } }
+			[ai + 6]:3 = [ai + 6]:3 + signed_x
+			[ai + 9]:3 = [ai + 9]:3 + signed_y
+			[bi + 6]:3 = [bi + 6]:3 - signed_x
+			[bi + 9]:3 = [bi + 9]:3 - signed_y
+			b = b + 1
+		}
+		a = a + 1
+	}
+	
+	// Update particle positions.
+	let i = 0
+	while i < PARTICLE_COUNT {
+		let index = Particles + i * PARTICLE_SIZE
+		let x = [index]:3
+			+ ([index + 6]:3 ->> 8)
+		let y = [index + 3]:3
+			+ ([index + 9]:3 ->> 8)
+		if x >> 8 >= 16384 { // unsigned less hack
+			x = 319 << 8
+		}
+		if x >> 8 >= 320 {
+			x = 0
+		}
+		if y >> 8 >= 16384 { // unsigned less hack
+			y = 179 << 8
+		}
+		if y >> 8 >= 180 {
+			y = 0
+		}
+		[index]:3 = x
+		[index + 3]:3 = y
+		i = i + 1
+	}
+
+}

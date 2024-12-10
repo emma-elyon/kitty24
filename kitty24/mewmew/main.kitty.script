@@ -1,0 +1,13 @@
+let buffer = 0
+main() {
+	init_allocator()
+ buffer = allocate(3 + 6)
+ loop {}
+}
+
+let frame = 0
+VBLANK!() {
+ clear(5)
+ text_sized(number_to_hex_string_buffer(frame, buffer), 160, 90)
+ frame = frame + 1
+}

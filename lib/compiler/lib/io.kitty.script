@@ -1,0 +1,54 @@
+io {
+	open(string) {
+		io::io(OPEN, string + 3, [string]:3)
+	}
+	
+	read(buffer, length) {
+		io::io(READ, buffer, length)
+	}
+
+	allocate_read_to_string(string) {
+		io::open(string)
+		let buffer = allocate(65536)
+		let length = io::read(buffer, 65536)
+		let result = allocate(length + 3)
+		[result]:3 = length
+		mem::copy(buffer, result + 3, length)
+		mem::free(buffer)
+		result
+	}
+	
+	write(buffer, length) {
+		io::io(WRITE, buffer, length)
+	}
+	
+	read_metadata(buffer, length) {
+		io::io(READ_META, buffer, length)
+	}
+	
+	change_directory(string) {
+		io::io(CHANGE_DIR, string + 3, [string]:3)
+	}
+	
+	read_directory(buffer, length) {
+		io::io(READ_DIR, buffer, length)
+	}
+	
+	run(string) {
+		io::io(RUN, string + 3, [string]:3)
+	}
+	
+	io(port, address, length) {
+		[IO_PORT]:3 = port
+		[IO_ADDRESS]:3 = address
+		[IO_LENGTH]:3 = length
+		[IO_STATUS]:3
+	}
+}
+
+io(port, address, length) {
+	[IO_PORT]:3 = port
+	[IO_ADDRESS]:3 = address
+	[IO_LENGTH]:3 = length
+	[IO_STATUS]:3
+}

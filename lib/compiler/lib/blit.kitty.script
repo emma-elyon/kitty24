@@ -1,0 +1,65 @@
+blit {
+	blit(
+		src_address, src_width, src_height, src_stride, 
+		dst_address, dst_width, dst_height, dst_stride
+	) {
+		[BLIT_MODE] = BLIT_8 | BLIT_NO_0
+		[BLIT_SRC_STRIDE]:2 = src_stride
+		[BLIT_SRC_WIDTH]:2 = src_width
+		[BLIT_SRC_HEIGHT]:2 = src_height
+		[BLIT_SRC_ADDRESS]:3 = src_address
+		[BLIT_DST_STRIDE]:2 = dst_stride
+		[BLIT_DST_WIDTH]:2 = dst_width
+		[BLIT_DST_HEIGHT]:2 = dst_height
+		[BLIT_DST_ADDRESS]:3 = dst_address
+	}
+
+	blit0(
+		src_address, src_width, src_height, src_stride, 
+		dst_address, dst_width, dst_height, dst_stride
+	) {
+		[BLIT_MODE] = BLIT_8 | BLIT_0
+		[BLIT_SRC_STRIDE]:2 = src_stride
+		[BLIT_SRC_WIDTH]:2 = src_width
+		[BLIT_SRC_HEIGHT]:2 = src_height
+		[BLIT_SRC_ADDRESS]:3 = src_address
+		[BLIT_DST_STRIDE]:2 = dst_stride
+		[BLIT_DST_WIDTH]:2 = dst_width
+		[BLIT_DST_HEIGHT]:2 = dst_height
+		[BLIT_DST_ADDRESS]:3 = dst_address
+	}
+
+	blit2(
+		src_address, src_width, src_height, src_stride, 
+		dst_address, dst_width, dst_height, dst_stride
+	) {
+		[BLIT_MODE] = BLIT_2 | BLIT_NO_0
+		[BLIT_SRC_STRIDE]:2 = src_stride
+		[BLIT_SRC_WIDTH]:2 = src_width
+		[BLIT_SRC_HEIGHT]:2 = src_height
+		[BLIT_SRC_ADDRESS]:3 = src_address
+		[BLIT_DST_STRIDE]:2 = dst_stride
+		[BLIT_DST_WIDTH]:2 = dst_width
+		[BLIT_DST_HEIGHT]:2 = dst_height
+		[BLIT_DST_ADDRESS]:3 = dst_address
+	}
+
+	blit20(
+		src_address, src_width, src_height, src_stride, 
+		dst_address, dst_width, dst_height, dst_stride
+	) {
+		[BLIT_MODE] = BLIT_2 | BLIT_0
+		[BLIT_SRC_STRIDE]:2 = src_stride
+		[BLIT_SRC_WIDTH]:2 = src_width
+		[BLIT_SRC_HEIGHT]:2 = src_height
+		[BLIT_SRC_ADDRESS]:3 = src_address
+		[BLIT_DST_STRIDE]:2 = dst_stride
+		[BLIT_DST_WIDTH]:2 = dst_width
+		[BLIT_DST_HEIGHT]:2 = dst_height
+		[BLIT_DST_ADDRESS]:3 = dst_address
+	}
+	
+	palette(from, to) {
+		[BLIT_REMAP + from] = to
+	}
+}

@@ -1,0 +1,238 @@
+// Hint: set language mode `C` or `rust` in your editor.
+
+let FRAMEBUFFER = 16711680
+// Player = ball
+let PlayerX = 40960
+let PlayerY = 30720
+let PlayerVelX = 256
+let PlayerVelY = 384
+let Level = 8000000 // RAM address for level
+
+// Chara = paddle
+let CharaX = 160
+let CharaY = 160
+let left = 0
+let right = 0
+
+let Color = 241
+let chara_width = 96
+
+main() {
+	// Initialize level
+	let i = 0
+	while i < 45 {
+		[Level + i] = 1
+		i = i + 1
+	}
+	clear(240)
+	loop { }
+}
+
+// vblank
+1!() {
+	let address = FRAMEBUFFER
+	let dy = 0
+	let width = 4
+	let height = 4
+	
+
+	// clear(240 + (PlayerY >> 6))
+	
+	// Collide with walls, except for bottom
+	if (PlayerX >> 8) + 1 >= 320 - width {
+		PlayerVelX = -PlayerVelX
+	}
+	if (PlayerY >> 8) + 1 <= 1 {
+		PlayerVelY = -PlayerVelY
+	}
+	
+	// Collide with chara	
+	// TODO: signed less/greater etc.
+	if PlayerVelY + 256 > 256
+	   && PlayerY >> 8 >= CharaY
+	   && PlayerX >> 8 > CharaX
+	   && PlayerX >> 8 < CharaX + chara_width {
+		PlayerVelY = -PlayerVelY
+		let dx = (CharaX + (chara_width >> 1)) - ((PlayerX >> 8) + 4)
+		PlayerVelX = -dx * 6
+	}
+
+	// Clear previous player
+	rectangle_asm(PlayerX >> 8, PlayerY >> 8, width, height, 240)
+	
+	// Update and draw player
+	PlayerX = PlayerX + PlayerVelX
+	PlayerY = PlayerY + PlayerVelY
+	
+	rectangle_asm(PlayerX >> 8, PlayerY >> 8, width, height, 243)
+
+	
+	// Draw level
+	let y = 16
+	let i = 0
+	while y < 96 {
+		let x = 24
+		while x < 296 {
+			if [Level + i] {
+				if x < PlayerX >> 8
+				   && PlayerX >> 8 < x + 24
+				   && y < PlayerY >> 8
+				   && PlayerY >> 8 < y + 8 {
+					[Level + i] = 0
+					rectangle_asm(x, y, 24, 8, 240)
+					PlayerVelY = -PlayerVelY
+				} else {
+					rectangle_asm(x, y, 24, 2, Color)
+					rectangle_asm(x, y+2, 24, 2, Color + 1)
+					rectangle_asm(x, y+4, 24, 2, Color + 2)
+					rectangle_asm(x, y+6, 24, 2, Color + 3)
+				}
+			}
+			i = i + 1
+			x = x + 32
+		}
+		y = y + 16
+	}
+
+	// Clear player
+	rectangle_asm(CharaX, CharaY, chara_width, 8, 240)
+	
+	// Update chara
+	CharaX = CharaX - 2 * left
+	CharaX = CharaX + 2 * right
+	
+	if CharaX > 16384 {
+		CharaX = 0
+	}
+	if CharaX > 320 - chara_width {
+		CharaX = 320 - chara_width
+	}
+	
+	// Draw player
+	rectangle_asm(CharaX, CharaY, chara_width, 8, 249)
+	
+	// Check lose condition
+	if PlayerY >> 8 > 180 - 8 {
+		PlayerY = 112 << 8
+		PlayerVelX = 256
+		PlayerVelY = 256
+		let i = 0
+		while i < 45 {
+			[Level + i] = 1
+			i = i + 1
+		}
+	}
+	
+	// Check win condition
+	let i = 0
+	let x = 0
+	while i < 45 {
+		x = x + [Level + i]
+		i = i + 1
+	}
+	if x == 0 {
+		clear(240)
+		Color = Color + 4
+		let i = 0
+		while i < 45 {
+			[Level + i] = 1
+			i = i + 1
+		}
+		PlayerX = 180 << 8
+		PlayerY = 112 << 8
+		PlayerVelX = 256
+		PlayerVelY = 384
+		chara_width = chara_width - 12
+	}
+}
+
+// keydown
+3!(key) {
+	if key == 65 { // A, Left
+		left = 1
+	}
+	if key == 68 { // D, Right
+		right = 1
+	}
+}
+
+// keyup
+4!(key) {
+	if key == 65 { // A, Left
+		left = 0
+	}
+	if key == 68 { // D, Right
+		right = 0
+	}
+}
+
+rectangle(x, y, w, h, color) {
+	let FRAMEBUFFER = 16711680
+	let dy = 0
+	while dy < h {
+		let dx = 0
+		let ax = FRAMEBUFFER + x
+		let ay = (y + dy) * 320
+		while dx < w {
+			[ax + dx + ay] = color
+			dx = dx + 1
+		}
+		dy = dy + 1
+	}
+}
+
+rectangle_asm(x, y, w, h, color) asm {
+	ld   r5, rB, 12
+	ld   r4, rB, 9
+	ld   r3, rB, 6
+	ld   r2, rB, 3
+	ld   r1, rB, 0
+	let  rD, $FF00
+	shl  rD, 8
+	let  r6, 0 ; dy
+	.do_while:
+		let  r7, 0 ; dx
+		add  r8, r1, rD ; ax
+		add  r9, r2, r6 ; ay
+		push rC, rD
+		let  rD, 320
+		mul  r9, r9, rD
+		.do_while_inner:
+			add   rD, r8, r7
+			add   rD, rD, r9
+			st    rD, r5, 0, 1
+			add   r7, 1 ; dx += 1
+			less  rD, r7, r3
+			if    rD, .do_while_inner
+		add  r6, 1
+		less r7, r6, r4
+		pop  rD, rC
+		if   r7, .do_while
+}
+
+clear(color) {
+	color = color | color << 8 | color << 16
+	let framebuffer_end = FRAMEBUFFER + 57600
+	let address = FRAMEBUFFER
+	let increment = 3
+	while address != framebuffer_end {
+		[address]:3 = color
+		address = address + increment
+	}
+}
+
+clear_asm(color) asm {
+	ld   r1, rB, 0
+	shl  rD, r1, 8
+	or   rD, rD, r1
+	shl  rD, rD, 8
+	or   r1, rD, r1
+	let  rD, $FFE1
+	shl  rD, 8
+	let  r2, $FF00
+	shl  r2, 8
+	.do_while:
+		push rD, r1
+		less r3, r2, rD
+		if   r3, .do_while		
+}

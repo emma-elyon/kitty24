@@ -1,0 +1,226 @@
+// --- Editor ---
+const EDITOR_MAX_LINES = 1024
+const EDITOR_MAX_VISIBLE_LINES = 25
+const EDITOR_MAX_LINE_LENGTH = 80
+const EDITOR_CONTEXT = 4
+const LINE_HEIGHT = 7
+
+// 3 B length, length B string, 1 B type
+let editor_files = 0
+let editor_files_length = 0
+
+// struct EditorLines { lines: *String[] }
+let editor_lines = 0
+let debug_string = 0
+let line_number_buffer = 0
+let cursor = 0
+
+init_editor() {
+	// Allocate 8 bits for cursor X, 16 bits for cursor Y
+	cursor = allocate(3)
+	[cursor]:3 = 0
+
+	// Allocate space for the file editor's line pointers in RAM
+	editor_lines = allocate(3 + EDITOR_MAX_LINES * 3)
+	
+	// Allocate space for the current line number
+	line_number_buffer = allocate(6 + 3)
+
+	// Ready the editor files struct array
+	editor_files = allocate(256)
+	[editor_files]:3 = 0
+	
+	// Read all directory entries with file name and metadata into editor_files.
+	editor_read_dir()
+	
+	// Read `main.kitty.script` by default, if possible
+	// let start_file = allocate(17 + 3)
+	// [start_file]:3 = 17
+	// memcopy("main.kitty.script", start_file + 3, 17)
+	editor_read_file("main.kitty.script")
+	// deallocate(start_file, 17 + 3)
+
+	let y = 0
+	while y < 180 - 5 {
+		set_high_resolution(67, y, 320, 6)
+		y = y + LINE_HEIGHT
+	}
+}
+
+deinit_editor() {
+	deallocate(editor_files, 256)
+	// TODO: Deallocate every line string as well.
+	deallocate(editor_lines, EDITOR_MAX_LINES * 3 + 3)
+	deallocate(line_number_buffer, 6 + 3)
+}
+
+draw_editor() {
+	// Project Title.
+	let length = [project_name]:3
+	text::text(project_name, (66 >> 1) - (length * 6 >> 1), 0)
+	rectangle_fill(0, 12, 66, 1, 3)
+	
+	// Directory listing.
+	draw_editor_list()
+
+	// Separator
+	rectangle_fill(66, 0, 1, 180, 3)
+
+	// Main content.
+	draw_main_editor()
+	
+	// Debug.
+	if debug_string != 0 {
+		text::text(debug_string, 160, 90)
+	}
+	
+	// Repeat held key after a delay.
+	if held_key != 0 {
+		held_key_counter = held_key_counter + 1
+		if held_key_counter > 15 {
+			if held_key_counter & 1 == 0 {
+				key_down_editor(held_key)
+			}
+		}
+	} else {
+		held_key_counter = 0
+	}
+}
+
+let held_key = 0
+let held_key_counter = 0
+key_down_editor(key) {
+	if key == KEY_ARROW_LEFT {
+		editor_text_left()
+
+	} else if key == KEY_ARROW_UP {
+		editor_text_up()
+
+	} else if key == KEY_ARROW_RIGHT {
+		editor_text_right()
+
+	} else if key == KEY_ARROW_DOWN {
+		editor_text_down()
+
+	} else if key == KEY_BACKSPACE {
+		editor_text_backspace()
+
+	} else if key == KEY_RETURN {
+		editor_text_return()
+
+	} else if key == 'B' && held_key == KEY_CTRL_LEFT {
+		// Build the currently open project, and run it.
+		// io(RUN, project_name + 3, [project_name]:3)
+		io::run(project_name)
+
+	} else if key == 'S' && held_key == KEY_CTRL_LEFT {
+		// Save the currently open file.
+		// let start_file = allocate(17 + 3)
+		// [start_file]:3 = 17
+		// memcopy("main.kitty.script", start_file + 3, 17)
+		editor_write_file("main.kitty.script")
+		// deallocate(start_file, 17 + 3)
+	}
+	held_key = key
+}
+
+KEY_UP!(key) {
+	held_key = 0
+}
+
+// TODO: Backspace, newline
+text_input_editor(character) {
+	let column, row = [cursor], [cursor + 1]:2
+	let entry_pointer = [editor_lines + 3 + row * 3]:3
+	let length = [entry_pointer]:3
+	let buffer = allocate(EDITOR_MAX_LINE_LENGTH + 3)
+	if buffer != 0 {
+		mem::copy(entry_pointer + 3, buffer, length)
+		mem::copy(buffer + column, entry_pointer + 3 + column + 1, length - column)
+		[entry_pointer + 3 + column] = character
+		deallocate(buffer, EDITOR_MAX_LINE_LENGTH + 3)
+		[entry_pointer]:3 = length + 1
+	}
+	[cursor] = column + 1
+}
+
+draw_main_editor() {
+	if editor_lines != 0 {
+		let line_count = [editor_lines]:3
+		let y = 0
+		let i = 0
+		let cursor_row = [cursor + 1]:2
+		let start_line = if cursor_row > EDITOR_MAX_VISIBLE_LINES >> 1 {
+			cursor_row - (EDITOR_MAX_VISIBLE_LINES >> 1)
+		} else {
+			0
+		}
+
+		// Draw each line
+		while (start_line + i) < line_count && i < EDITOR_MAX_VISIBLE_LINES {
+			// Draw line number
+			palette(3, 1)
+			number_to_hex_string_buffer((start_line + i) + 1, line_number_buffer)
+			mem::copy(line_number_buffer + 3 + 3, line_number_buffer + 3, 3)
+			[line_number_buffer]:3 = 3
+			text::text2(line_number_buffer, 80 - 12, y)
+			palette(3, 3)
+			
+			// Draw line text
+			text::text2([editor_lines + 3 + (start_line + i) * 3]:3, 80, y)
+			y = y + LINE_HEIGHT
+			i = i + 1
+		}
+
+		// Draw cursor
+		let x = [cursor] * 3 + 80
+		let row = if cursor_row > EDITOR_MAX_VISIBLE_LINES >> 1 {
+			EDITOR_MAX_VISIBLE_LINES >> 1
+		} else {
+			[cursor + 1]:2
+		}
+		let y = row * LINE_HEIGHT + 6
+		rectangle_fill(x, y, 3, 1, 0xCC)
+
+	} else {
+		text::text2("No data.", 80, 24)
+	}
+}
+
+draw_editor_list() {
+	let entry_address = editor_files
+	let y = 18
+	while entry_address < editor_files + editor_files_length {
+		text::text2(entry_address, 9, y)
+		let entry_length = [entry_address]:3
+		let meta = [entry_address + entry_length + 3]
+		if meta == 'D' {
+			text::text2("Di", 0, y)
+		} else if meta == 'F' {
+			text::text2("Fi", 0, y)
+		} else {
+			text::text2("??", 0, y)
+		}
+		entry_address = entry_address + entry_length + 4
+		y = y + LINE_HEIGHT
+	}
+}
+
+clamp_cursor() {
+	let column, row = [cursor], [cursor + 1]:2
+
+	// Clamp row.
+	let editor_line_count = [editor_lines]:3
+	if row >= editor_line_count {
+		row = editor_line_count - 1
+	}
+
+	// Clamp column.
+	let row_length = [[editor_lines + 3 + row * 3]:3]:3
+	if column > row_length {
+		column = row_length
+	}
+	
+	[cursor] = column
+	[cursor + 1]:2 = row
+}

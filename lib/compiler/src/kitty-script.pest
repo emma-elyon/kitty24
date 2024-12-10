@@ -1,0 +1,170 @@
+WHITESPACE = _{ " " | "\t" | NEWLINE }
+COMMENT    = _{
+    "//" ~ (!NEWLINE ~ ANY)*
+  | "/*" ~ (!"*/" ~ ANY)* ~ "*/"
+}
+
+// Entry point.
+Program = _{ SOI ~ (Namespace | Interrupt | Region)*  ~ EOI }
+Region = _{ GlobalConst | GlobalDeclaration | AssemblyFunction | Function }
+
+// Program regions.
+Namespace         = { Identifier ~ "{" ~ Region* ~ "}" }
+GlobalConst       = { "const" ~ IdentifierList ~ ("=" ~ ExpressionList) }
+GlobalDeclaration = { "let" ~ IdentifierList ~ ("=" ~ ConstantList) }
+Interrupt         = { (Constant | Identifier) ~ "!" ~ Parameters ~ Block }
+AssemblyFunction  = { Identifier ~ Parameters ~ "asm" ~ "{" ~ Assembly ~ "}" }
+Function          = { Identifier ~ Parameters ~ Block }
+
+// Lists
+IdentifierList = { (Identifier ~ ",")* ~ Identifier }
+ExpressionList = { (Expression ~ ",")* ~ Expression }
+ConstantList   = { (Constant ~ ",")* ~ Constant }
+Parameters     = { ("(" ~ Declarations ~ ")")? }
+Declarations   = _{ (Identifier ~ ",")* ~ Identifier? }
+
+// Other
+Constant = { Hexadecimal | Binary | Decimal }
+Block    = { "{" ~ StatementList ~ "}" }
+Assembly = { (!"}" ~ ANY)* }
+
+// Expressions
+Expression = {
+    PrefixOperator* ~ PrimaryExpression /* ~ PostfixOperator* */
+  ~ (InfixOperator ~ PrefixOperator* ~ PrimaryExpression /* ~ PostfixOperator* */
+  )*
+}
+
+// Expression terms.
+PrefixOperator = _{
+    LogicalNegation
+  | BitwiseNegation
+  | ArithmeticNegation
+}
+
+InfixOperator = _{
+    RotateRight
+  | RotateLeft
+  | ShiftLeft
+  | ShiftRight
+  | ArithmeticShiftRight
+  | LogicalConjunction
+  | LogicalDisjunction
+  | Addition
+  | Subtraction
+  | Multiplication
+  | BitwiseConjunction
+  | BitwiseDisjunction
+  | BitwiseExclusiveDisjunction
+  | BitwiseNegationDisjunction
+  | Equality
+  | Inequality
+  | LessEquality
+  | Less
+  | GreaterEquality
+  | Greater
+}
+
+// PostfixOperator = _{ "++" | "--" }
+
+PrimaryExpression = _{
+    ConditionalMultiple
+  | Conditional
+  | Call
+  | Load
+  | Constant
+  | Identifier
+  | StringLiteral
+  | CharacterLiteral
+  | "(" ~ Expression ~ ")"
+}
+
+// More expressions.
+// FIXME: panic on more than one identifier, and on a, b = if 1 { 2 } else { 3 }
+Conditional = { "if" ~ Expression ~ Block ~ ("else" ~ Block)? }
+ConditionalMultiple = { "if" ~ Expression ~ Block ~ ElseIf+ ~ ("else" ~ Block)? }
+ElseIf = { "else if" ~ Expression ~ Block }
+Call        = { Identifier ~ "(" ~ ExpressionList? ~ ")" }
+Load        = { "[" ~ Expression ~ "]" ~ (":" ~ ByteCount)? }
+ByteCount   = { '1'..'3' }
+
+// Operators.
+Addition                    = { "+" }
+Subtraction                 = { "-" }
+Multiplication              = { "*" }
+BitwiseConjunction          = { "&" }
+BitwiseDisjunction          = { "|" }
+BitwiseExclusiveDisjunction = { "^" }
+BitwiseNegationDisjunction  = { "@" }
+LogicalConjunction          = { "&&" }
+LogicalDisjunction          = { "||" }
+Equality                    = { "==" }
+Inequality                  = { "!=" }
+Less                        = { "<" }
+LessEquality                = { "<=" }
+Greater                     = { ">" }
+GreaterEquality             = { ">=" }
+ArithmeticShiftRight        = { "->>" }
+ShiftRight                  = { ">>" }
+ShiftLeft                   = { "<<" }
+RotateRight                 = { ">>>" }
+RotateLeft                  = { "<<<" }
+LogicalNegation             = { "!" }
+BitwiseNegation             = { "~" }
+ArithmeticNegation          = { "-" }
+
+// Statement types.
+StatementList = { Statement* }
+Statement     = {
+    Goto
+  | Return
+  | Break
+  | Continue
+  | LabelWhile
+  | While
+  | Loop
+  | Store
+  | LabelDefinition
+  | Definition
+  | Declaration
+  | Assignment
+  | ExpressionList
+  | Block
+}
+
+// Statements.
+Goto            = { "goto" ~ Label }
+Return          = { "return" ~ ExpressionList? }
+Break           = { "break" ~ Label? } // Verify how the format of the label should work.
+Continue        = { "continue" ~ Label? }
+While           = { "while" ~ Expression ~ Block }
+LabelWhile      = { Label ~ "while" ~ Expression ~ Block }
+Loop            = { "loop" ~ Block }
+Store           = { "[" ~ Expression ~ "]" ~ (":" ~ ByteCount)? ~ "=" ~ Expression }
+LabelDefinition = { Label ~ ":" ~ !":" }
+Definition      = { "let" ~ IdentifierList ~ "=" ~ ExpressionList }
+Declaration     = { "let" ~ IdentifierList } // TODO: Maybe disallow declaration without initialization?
+Assignment      = { IdentifierList ~ "=" ~ ExpressionList }
+
+// Strings.
+StringLiteral = ${ "\"" ~ (StringRaw | StringEscape)* ~ "\"" }
+StringRaw = @{ (!("\\" | "\"") ~ ANY)+ }
+StringEscapePredefined = @{ "n" /* | "r" */ | "t" | "\\" | "0" | "\"" /* | "'" */ }
+StringEscape = _{ "\\" ~ StringEscapePredefined }
+
+// Characters.
+CharacterLiteral = ${ "\'" ~ (CharacterRaw | CharacterEscape){1,3} ~ "\'" }
+CharacterRaw = @{ !("\\" | "\'") ~ ANY }
+CharacterEscapePredefined = @{ "n" /* | "r" */ | "t" | "\\" | "0" | "'" /* | "'" */ }
+CharacterEscape = _{ "\\" ~ CharacterEscapePredefined }
+
+// Terminals
+// Identifier  = @{ (ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_")* }
+// HACK: Allow identifiers containing `/`
+Identifier  = @{ (ASCII_ALPHA | "_" | "/") ~ (ASCII_ALPHANUMERIC | "_" | "::")* }
+Decimal     = @{ "-"? ~ ((ASCII_NONZERO_DIGIT ~ ASCII_DIGIT+) | ASCII_DIGIT) }
+Hexadecimal = @{ "-"? ~ "0x" ~ HEX_DIGIT+ }
+Binary      = @{ "-"? ~ "0b" ~ ("0" | "1")+ }
+Label       = @{ (ASCII_ALPHANUMERIC | "_")+ }
+
+// Keyword = { "if" | "else" | "goto" | "return" | "while" | "loop" | "let" | "const" | "break" | "continue" }
