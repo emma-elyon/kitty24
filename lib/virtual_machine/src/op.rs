@@ -18,7 +18,7 @@ const PUSH: u8 = 0xF;
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 /// Operations numbered by opcode.
 pub enum Op {
-    Or,
+	Or,
 	Nor,
 	And,
 	Xor,
@@ -37,7 +37,7 @@ pub enum Op {
 }
 
 impl From<u8> for Op {
-    fn from(value: u8) -> Self {
+	fn from(value: u8) -> Self {
 		match value {
 			OR => Op::Or,
 			NOR => Op::Nor,
@@ -56,13 +56,13 @@ impl From<u8> for Op {
 			POP => Op::Pop,
 			PUSH => Op::Push,
 			// TODO: Determine performance impact of this panic.
-			_ => panic!("Unknown opcode: {}", value)
+			_ => panic!("Unknown opcode: {}", value),
 		}
-    }
+	}
 }
 
 impl From<Op> for u8 {
-    fn from(value: Op) -> Self {
+	fn from(value: Op) -> Self {
 		match value {
 			Op::Or => OR,
 			Op::Nor => NOR,
@@ -81,5 +81,5 @@ impl From<Op> for u8 {
 			Op::Pop => POP,
 			Op::Push => PUSH,
 		}
-    }
+	}
 }

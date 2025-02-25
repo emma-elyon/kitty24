@@ -1,20 +1,24 @@
-mod cpu;
 mod apu;
-mod ram;
-mod op;
+mod cpu;
 mod event;
 mod io;
+mod op;
+mod ram;
 
-use std::{sync::{Arc, Mutex}, collections::VecDeque, fs};
+use std::{
+	collections::VecDeque,
+	fs,
+	sync::{Arc, Mutex},
+};
 
 use common::memory;
 
-use cpu::*;
 use apu::*;
-use ram::*;
+use cpu::*;
 use event::*;
 use io::*;
 pub use op::{Op, Op::*};
+use ram::*;
 
 // Presentation
 const WIDTH_LOW: usize = 320;
@@ -44,7 +48,10 @@ const CYCLES_PER_SCANLINE: usize = CYCLES_PER_FRAME / SCANLINES;
 const SAMPLE_RATE: usize = 48000;
 
 /// kitty24 Virtual Machine / emulator
-pub struct VirtualMachine<F> where F: FnMut([u32; 16]) {
+pub struct VirtualMachine<F>
+where
+	F: FnMut([u32; 16]),
+{
 	boot: bool,
 	cpu: Cpu,
 	apu: Apu,
@@ -54,18 +61,21 @@ pub struct VirtualMachine<F> where F: FnMut([u32; 16]) {
 	halted: bool,
 	keys: Vec<u16>,
 	palette: Vec<[u8; 3]>,
-	
+
 	/// Cycles remaining of the current block transfer or IO
 	blocked_cycles: usize,
-	
+
 	/// Name of currently open file, if any.
 	open_file_name: Option<String>,
-    
+
 	/// Name of current directory, relative to the kitty24 root.
 	current_directory: String,
 }
 
-impl<F> VirtualMachine<F> where F: FnMut([u32; 16]) {
+impl<F> VirtualMachine<F>
+where
+	F: FnMut([u32; 16]),
+{
 	/// Construct virtual machine preloaded with `rom`.
 	pub fn new(rom: Vec<u8>, exit: F, boot: bool) -> Self {
 		let boot_rom = read_rom("kitty24/boot").unwrap();
@@ -100,10 +110,10 @@ impl<F> VirtualMachine<F> where F: FnMut([u32; 16]) {
 			],
 			blocked_cycles: 0,
 			open_file_name: None,
-            current_directory: String::new(),
+			current_directory: String::new(),
 		}
 	}
-	
+
 	pub fn reboot(&mut self) {
 		let boot_rom = read_rom("kitty24/boot").unwrap();
 		self.boot = true;
@@ -115,7 +125,7 @@ impl<F> VirtualMachine<F> where F: FnMut([u32; 16]) {
 		self.open_file_name = None;
 		self.current_directory = String::new();
 	}
-	
+
 	/// Update the current key state, emitting any down- or up events
 	/// (in that order).
 	pub fn set_keys(&mut self, keys: &Vec<u16>) {
@@ -133,16 +143,20 @@ impl<F> VirtualMachine<F> where F: FnMut([u32; 16]) {
 		}
 		self.keys.clone_from(keys);
 	}
-	
+
 	pub fn set_text(&mut self, text: Vec<u8>) {
 		for character in text {
 			self.cpu.cause_event(Event::Text(character).into());
 			// eprintln!("char {}", character.escape_ascii().to_string())
 		}
 	}
-	
+
 	/// Run for one frame, returning busy cycle count.
-	pub fn run(&mut self, display: &mut Vec<u8>, audio: Option<&Arc<Mutex<VecDeque<f32>>>>) -> usize {
+	pub fn run(
+		&mut self,
+		display: &mut Vec<u8>,
+		audio: Option<&Arc<Mutex<VecDeque<f32>>>>,
+	) -> usize {
 		let mut busy_cycles = 0;
 
 		// self.cpu.cause_event(Event::Timer.into());
@@ -153,12 +167,14 @@ impl<F> VirtualMachine<F> where F: FnMut([u32; 16]) {
 			let length = buffer.len();
 			let mut samples = vec![];
 
-            // Square wave channel.
+			// Square wave channel.
 			let volume = self.ram[memory::AUDIO0_VOLUME as u32] as f32 / 255.0;
-            let duty = (self.ram[memory::AUDIO0_DUTY as u32] as f32 / 255.0) * 0.5;
+			let duty = (self.ram[memory::AUDIO0_DUTY as u32] as f32 / 255.0) * 0.5;
 			let frequency_high = self.ram[memory::AUDIO0_PITCH as u32] as f32;
 			let frequency_low = self.ram[memory::AUDIO0_PITCH as u32 + 1] as f32 / 256.0;
-			let increment = 440.0 * 2.0f32.powf(((frequency_high + frequency_low) as f32 - 69.0) / 12.0) / SAMPLE_RATE as f32;
+			let increment = 440.0
+				* 2.0f32.powf(((frequency_high + frequency_low) as f32 - 69.0) / 12.0)
+				/ SAMPLE_RATE as f32;
 			let max_sample = AUDIO_BUFFER_SIZE as isize - length as isize - 1;
 			for i in 0..=max_sample {
 				let alpha = i as f32 / max_sample as f32;
@@ -169,12 +185,14 @@ impl<F> VirtualMachine<F> where F: FnMut([u32; 16]) {
 			}
 			self.apu.square.volume = volume;
 
-            // Triangle wave channel.
+			// Triangle wave channel.
 			let volume = self.ram[memory::AUDIO1_VOLUME as u32] as f32 / 255.0;
-            let duty = (self.ram[memory::AUDIO1_DUTY as u32] as f32 / 255.0) * 0.5;
+			let duty = (self.ram[memory::AUDIO1_DUTY as u32] as f32 / 255.0) * 0.5;
 			let frequency_high = self.ram[memory::AUDIO1_PITCH as u32] as f32;
 			let frequency_low = self.ram[memory::AUDIO1_PITCH as u32 + 1] as f32 / 256.0;
-			let increment = 440.0 * 2.0f32.powf(((frequency_high + frequency_low) as f32 - 69.0) / 12.0) / SAMPLE_RATE as f32;
+			let increment = 440.0
+				* 2.0f32.powf(((frequency_high + frequency_low) as f32 - 69.0) / 12.0)
+				/ SAMPLE_RATE as f32;
 			let max_sample = AUDIO_BUFFER_SIZE as isize - length as isize - 1;
 			for i in 0..=max_sample {
 				let alpha = i as f32 / max_sample as f32;
@@ -188,13 +206,13 @@ impl<F> VirtualMachine<F> where F: FnMut([u32; 16]) {
 				self.apu.triangle.phase = phase;
 			}
 			self.apu.triangle.volume = volume;
-			
+
 			// PCM "channel".
 			// TODO: Don't cause events if there's no actual use of it (how do
 			// we know that? A memory mapped on/off toggle somewhere?
-            // ... or just rely on the PCM interrupt enable? Nah, we may be out
+			// ... or just rely on the PCM interrupt enable? Nah, we may be out
 			// of step with the interrupt handlers...
-            if self.ram[memory::PCM_ENABLE as u32] > 0 {
+			if self.ram[memory::PCM_ENABLE as u32] > 0 {
 				let max_sample = AUDIO_BUFFER_SIZE as isize - length as isize;
 				for i in 0..max_sample {
 					if let Some(pcm_sample) = self.apu.pcm.buffer.pop_front() {
@@ -208,17 +226,18 @@ impl<F> VirtualMachine<F> where F: FnMut([u32; 16]) {
 				}
 				let request_samples = AUDIO_BUFFER_SIZE - self.apu.pcm.buffer.len(); // - 1; // Why -1?
 				if request_samples > 0 {
-					self.cpu.cause_event(Event::Pcm(request_samples as u16).into());
+					self.cpu
+						.cause_event(Event::Pcm(request_samples as u16).into());
 				}
 			}
-			
+
 			buffer.extend(samples);
 		}
 
 		for y in 0..HEIGHT_LOW {
 			// Update machine.
 			busy_cycles += self.step(CYCLES_PER_SCANLINE);
-			
+
 			// Render scanline to display buffer
 			for x in 0..WIDTH_LOW {
 				let offset = x + y * WIDTH_LOW;
@@ -226,17 +245,17 @@ impl<F> VirtualMachine<F> where F: FnMut([u32; 16]) {
 				let display_index = x * SCALE_HIGH + y * WIDTH_HIGH * SCALE_HIGH;
 				let display_index = display_index * DISPLAY_BYTES_PER_PIXEL;
 				let palette_index = self.ram[address as u32];
-                let resolution_address = RESOLUTION_MAP_ADDRESS + (offset >> 3);
-                let mask = (1 << (offset & 0b111)) as u8;
-                let high_res_mode = (self.ram[resolution_address as u32] & mask) != 0;
-                if high_res_mode {
+				let resolution_address = RESOLUTION_MAP_ADDRESS + (offset >> 3);
+				let mask = (1 << (offset & 0b111)) as u8;
+				let high_res_mode = (self.ram[resolution_address as u32] & mask) != 0;
+				if high_res_mode {
 					let palette_indices = [
 						(palette_index >> 6) & 0x3,
 						(palette_index >> 4) & 0x3,
 						(palette_index >> 2) & 0x3,
 						(palette_index >> 0) & 0x3,
 					];
-                    let pixels = [
+					let pixels = [
 						self.palette[palette_indices[0] as usize],
 						self.palette[palette_indices[1] as usize],
 						self.palette[palette_indices[2] as usize],
@@ -251,34 +270,34 @@ impl<F> VirtualMachine<F> where F: FnMut([u32; 16]) {
 						display[pixel_index + 3] = 255;
 					}
 				} else {
-                    let pixel = if palette_index < 0xF0 {
-                        // [0, palette_index, 0]
-                        // HACK: mirror system palette for now.
-                        // let palette_index = palette_index & 0xF;
-                        // self.palette[palette_index as usize]
+					let pixel = if palette_index < 0xF0 {
+						// [0, palette_index, 0]
+						// HACK: mirror system palette for now.
+						// let palette_index = palette_index & 0xF;
+						// self.palette[palette_index as usize]
 						// NOTE: This is currently being done in ROM
-						
+
 						// NEW NOTE: not anymore, using system palette
 						// everywhere for now~
-                        let palette_index = palette_index & 0xF;
-                        self.palette[palette_index as usize]
-                    } else { // System palette.
-                        let palette_index = palette_index - 0xF0;
-                        self.palette[palette_index as usize]
-                    };
-                    let (red, green, blue) = (pixel[0], pixel[1], pixel[2]);
-                    for i in [0, 1, WIDTH_HIGH, WIDTH_HIGH + 1] {
-                        let pixel_index = display_index + i * DISPLAY_BYTES_PER_PIXEL;
-                        display[pixel_index + 0] = red;
-                        display[pixel_index + 1] = green;
-                        display[pixel_index + 2] = blue;
-                        display[pixel_index + 3] = 255;
-                    }
+						let palette_index = palette_index & 0xF;
+						self.palette[palette_index as usize]
+					} else {
+						// System palette.
+						let palette_index = palette_index - 0xF0;
+						self.palette[palette_index as usize]
+					};
+					let (red, green, blue) = (pixel[0], pixel[1], pixel[2]);
+					for i in [0, 1, WIDTH_HIGH, WIDTH_HIGH + 1] {
+						let pixel_index = display_index + i * DISPLAY_BYTES_PER_PIXEL;
+						display[pixel_index + 0] = red;
+						display[pixel_index + 1] = green;
+						display[pixel_index + 2] = blue;
+						display[pixel_index + 3] = 255;
+					}
 				}
 			}
 		}
 
-		
 		self.cpu.cause_event(Event::VBlank.into());
 
 		busy_cycles += self.step(CYCLES_PER_SCANLINE * HIDDEN_SCANLINES);
@@ -299,7 +318,7 @@ impl<F> VirtualMachine<F> where F: FnMut([u32; 16]) {
 
 		busy_cycles
 	}
-	
+
 	/// Step machine for `cycles` instructions.
 	fn step(&mut self, cycles: usize) -> usize {
 		let mut busy_cycles = 0;
@@ -365,7 +384,7 @@ impl<F> VirtualMachine<F> where F: FnMut([u32; 16]) {
 					// println!("rF: {:X} ({})", self.cpu.get(0xF) & 0xFFFFFF, self.cpu.get(0xF));
 					self.halted = true;
 					(self.exit)(exit_code);
-					return busy_cycles
+					return busy_cycles;
 				}
 			}
 
@@ -373,7 +392,7 @@ impl<F> VirtualMachine<F> where F: FnMut([u32; 16]) {
 			// TODO: Determine if this should happen after executing the
 			// instruction (in which case re-read the register).
 			self.cpu.set(REGISTER_PROGRAM_COUNTER, program_counter + 3);
-			
+
 			// Decode the instruction.
 			let opcode_register = self.ram[program_counter];
 			let argument_0 = self.ram[program_counter + 1];
@@ -385,34 +404,25 @@ impl<F> VirtualMachine<F> where F: FnMut([u32; 16]) {
 			let op: Op = opcode.into();
 			match op {
 				// I: 16 bit immediate instruction.
-				If | Let =>
-					self.i(op, register, argument_0, argument_1),
-				
+				If | Let => self.i(op, register, argument_0, argument_1),
+
 				// M: Memory load/store instruction.
-				Load | Store | Pop | Push =>
-					self.m(op, register, argument_0, argument_1),
-				
+				Load | Store | Pop | Push => self.m(op, register, argument_0, argument_1),
+
 				// R: Register-register instruction.
-				Or | Nor | And | Xor | Add | Sub | Mul |
-				Shift | Less | SignedLess =>
+				Or | Nor | And | Xor | Add | Sub | Mul | Shift | Less | SignedLess => {
 					self.r(op, register, argument_0, argument_1)
+				}
 			}
 		}
-		
+
 		busy_cycles
 	}
-	
+
 	/// I: 16 bit immediate instruction.
-	fn i(
-		&mut self,
-		op: Op,
-		register: u8,
-		immediate_high: u8,
-		immediate_low: u8,
-	) {
+	fn i(&mut self, op: Op, register: u8, immediate_high: u8, immediate_low: u8) {
 		// Decode 16 bit immediate.
-		let immediate =
-			i16::from_be_bytes([immediate_high, immediate_low]);
+		let immediate = i16::from_be_bytes([immediate_high, immediate_low]);
 
 		match op {
 			// if r, i16
@@ -424,23 +434,17 @@ impl<F> VirtualMachine<F> where F: FnMut([u32; 16]) {
 				let program_counter = self.cpu.get(REGISTER_PROGRAM_COUNTER) as i32;
 				let value = (program_counter + immediate) as u32;
 				self.cpu.set(REGISTER_PROGRAM_COUNTER, value);
-			},
+			}
 
 			// let r, u16
 			// r <- u16
 			Let => self.cpu.set(register, immediate as u16 as u32),
-			_ => unreachable!()
+			_ => unreachable!(),
 		}
 	}
-	
+
 	/// M: Memory load/store instruction.
-	fn m(
-		&mut self,
-		op: Op,
-		register: u8,
-		source_byte_count_immediate_high: u8,
-		immediate_low: u8,
-	) {
+	fn m(&mut self, op: Op, register: u8, source_byte_count_immediate_high: u8, immediate_low: u8) {
 		// Extract source register, byte count, and immediate.
 		let source = source_byte_count_immediate_high >> 4;
 		let byte_count = source_byte_count_immediate_high >> 2 & 0b11;
@@ -456,10 +460,10 @@ impl<F> VirtualMachine<F> where F: FnMut([u32; 16]) {
 		// Read current register values.
 		let register_value = self.cpu.get(register);
 		let source_value = self.cpu.get(source);
-		
+
 		// Calculate the absolute memory address to access.
 		let address = (register_value as i32 + immediate) as u32;
-		
+
 		// Execute the operation.
 		match op {
 			// ld s, r, b, i10
@@ -474,8 +478,8 @@ impl<F> VirtualMachine<F> where F: FnMut([u32; 16]) {
 					value |= byte << shift;
 				}
 				self.cpu.set(source, value);
-			},
-			
+			}
+
 			// st r, s, b, i10
 			// [r + i]:b <- s
 			Store => {
@@ -489,7 +493,7 @@ impl<F> VirtualMachine<F> where F: FnMut([u32; 16]) {
 				// if address == memory::BLOCK_DST_ADDRESS as u32 {
 				// 	self.blocked_cycles = self.ram.block_transfer();
 				// }
-			},
+			}
 
 			// pop s, r, b, i10
 			// s <- [r + i]:b, r <- r + b
@@ -503,12 +507,12 @@ impl<F> VirtualMachine<F> where F: FnMut([u32; 16]) {
 					value |= byte << shift;
 				}
 				self.cpu.set(source, value);
-				
+
 				// Increment address register.
-                let register_value = self.cpu.get(register);
+				let register_value = self.cpu.get(register);
 				self.cpu.set(register, register_value + byte_count);
-			},
-			
+			}
+
 			// push r, s, b, i10
 			// [r + i]:b <- s, r <- r - b
 			Push => {
@@ -525,27 +529,21 @@ impl<F> VirtualMachine<F> where F: FnMut([u32; 16]) {
 					self.ram[address + i] = (value >> shift) as u8
 				}
 				self.blocked_cycles += self.trigger_memory(address);
-			},
-			_ => unreachable!()
+			}
+			_ => unreachable!(),
 		}
 	}
-	
-	fn r(
-		&mut self,
-		op: Op,
-		register: u8,
-		source_target: u8,
-		immediate: u8,
-	) {
+
+	fn r(&mut self, op: Op, register: u8, source_target: u8, immediate: u8) {
 		// Decode instruction.
 		let source = source_target >> 4;
 		let target = source_target & 0xF;
 		let immediate = immediate as u32;
-		
+
 		// Read source and target register values.
 		let source_value = self.cpu.get(source);
 		let target_value = self.cpu.get(target);
-		
+
 		// Execute the operation.
 		let value = match op {
 			Or => source_value | target_value | immediate,
@@ -566,7 +564,7 @@ impl<F> VirtualMachine<F> where F: FnMut([u32; 16]) {
 				let source_value = source_value.max((source == 0) as u32);
 				let target_value = target_value.max((target == 0) as u32);
 				source_value * target_value * immediate
-			},
+			}
 			Shift => {
 				// TODO: Look into negative shifts, probably in the assembler;
 				// shl r1, -3 => r1 << -3 => r1 >> 3
@@ -584,45 +582,41 @@ impl<F> VirtualMachine<F> where F: FnMut([u32; 16]) {
 
 					// rotl r, s, t, i5
 					// r <- s <<< t + i5
-					0b010 =>
-						source_value << shift % 24 |
-						source_value >> 24 - shift % 24,
+					0b010 => source_value << shift % 24 | source_value >> 24 - shift % 24,
 
 					// rotr r, s, t, i5
 					// r <- s >>> t + i5
-					0b011 =>
-						source_value >> shift % 24 |
-						source_value << 24 - shift % 24,
+					0b011 => source_value >> shift % 24 | source_value << 24 - shift % 24,
 
 					// ashl ???
 					0b100 => unimplemented!("PC: {:X}", self.cpu.get(REGISTER_PROGRAM_COUNTER)),
 
 					// ashr r, s, t, i5
 					// r <- s >>+ t + i5
-					0b101 => ((source_value as i32) << 8 >> 8 >> shift) as u32, 
+					0b101 => ((source_value as i32) << 8 >> 8 >> shift) as u32,
 
 					// arol ???
 					0b110 => unimplemented!(),
 
 					// aror ???
 					0b111 => unimplemented!("PC: {:X}", self.cpu.get(REGISTER_PROGRAM_COUNTER)),
-					_ => unreachable!()
+					_ => unreachable!(),
 				}
 			}
 			Less => (source_value < target_value + immediate) as u32,
 			SignedLess => {
 				let source_value = (source_value as i32) << 8 >> 8;
 				let target_value = (target_value as i32) << 8 >> 8;
-                let signed_immediate = ((immediate as i32) << 24 >> 24) as u32;
+				let signed_immediate = ((immediate as i32) << 24 >> 24) as u32;
 				(source_value < target_value + signed_immediate as i32) as u32
 			}
-			_ => unreachable!()
+			_ => unreachable!(),
 		};
 
 		// Write back.
 		self.cpu.set(register, value);
 	}
-	
+
 	fn trigger_memory(&mut self, address: u32) -> usize {
 		match address as usize {
 			memory::BLOCK_DST_ADDRESS => self.ram.block_transfer(),
@@ -630,23 +624,20 @@ impl<F> VirtualMachine<F> where F: FnMut([u32; 16]) {
 			_ => 0,
 		}
 	}
-	
+
 	fn io(&mut self) -> usize {
-		let port =
-			((self.ram[io::PORT as u32 + 0] as u32) << 16) |
-			((self.ram[io::PORT as u32 + 1] as u32) <<  8) |
-			((self.ram[io::PORT as u32 + 2] as u32) <<  0);
+		let port = ((self.ram[io::PORT as u32 + 0] as u32) << 16)
+			| ((self.ram[io::PORT as u32 + 1] as u32) << 8)
+			| ((self.ram[io::PORT as u32 + 2] as u32) << 0);
 
-		let address =
-			((self.ram[io::ADDRESS as u32 + 0] as u32) << 16) |
-			((self.ram[io::ADDRESS as u32 + 1] as u32) <<  8) |
-			((self.ram[io::ADDRESS as u32 + 2] as u32) <<  0);
+		let address = ((self.ram[io::ADDRESS as u32 + 0] as u32) << 16)
+			| ((self.ram[io::ADDRESS as u32 + 1] as u32) << 8)
+			| ((self.ram[io::ADDRESS as u32 + 2] as u32) << 0);
 
-		let length =
-			((self.ram[io::LENGTH as u32 + 0] as u32) << 16) |
-			((self.ram[io::LENGTH as u32 + 1] as u32) <<  8) |
-			((self.ram[io::LENGTH as u32 + 2] as u32) <<  0);
-		
+		let length = ((self.ram[io::LENGTH as u32 + 0] as u32) << 16)
+			| ((self.ram[io::LENGTH as u32 + 1] as u32) << 8)
+			| ((self.ram[io::LENGTH as u32 + 2] as u32) << 0);
+
 		match port as usize {
 			io::PCM => self.pcm(address, length),
 			io::RUN => self.run_rom(address, length),
@@ -670,28 +661,28 @@ impl<F> VirtualMachine<F> where F: FnMut([u32; 16]) {
 		}
 		length as usize
 	}
-	
+
 	fn run_rom(&mut self, address: u32, length: u32) -> usize {
 		let prefix = String::from("kitty24/");
 		let mut path = String::new();
-		
+
 		for i in address..address + length {
 			path += &self.ram[i].escape_ascii().to_string();
 		}
-        
-        match read_rom(&(prefix + &path)) {
+
+		match read_rom(&(prefix + &path)) {
 			Ok(rom) => {
 				self.ram = Ram::new(rom);
 				self.cpu = Cpu::default();
 				self.apu = Apu::default();
 				eprintln!("RUN \"{}\"", path);
-			},
+			}
 			Err(error) => eprintln!("ERROR \"{}\" {}", path, error),
 		}
-		
+
 		0
 	}
-	
+
 	fn open(&mut self, address: u32, length: u32) -> usize {
 		let prefix = String::from("kitty24/") + &self.current_directory;
 		let mut path = String::new();
@@ -716,7 +707,7 @@ impl<F> VirtualMachine<F> where F: FnMut([u32; 16]) {
 		}
 		length as usize
 	}
-	
+
 	/// Read contents from open file into `address`, at most `length` bytes
 	fn read(&mut self, address: u32, length: u32) -> usize {
 		if let Some(file_name) = &self.open_file_name {
@@ -728,7 +719,7 @@ impl<F> VirtualMachine<F> where F: FnMut([u32; 16]) {
 						self.ram[io::STATUS as u32 + 0] = (i >> 16) as u8;
 						self.ram[io::STATUS as u32 + 1] = (i >> 8) as u8;
 						self.ram[io::STATUS as u32 + 2] = (i >> 0) as u8;
-						return i
+						return i;
 					}
 				}
 				self.ram[io::STATUS as u32 + 0] = (length >> 16) as u8;
@@ -736,7 +727,10 @@ impl<F> VirtualMachine<F> where F: FnMut([u32; 16]) {
 				self.ram[io::STATUS as u32 + 2] = (length >> 0) as u8;
 				length as usize
 			} else {
-				eprintln!("ERROR: Some file error, probably was a directory: \"{}\"", file_name);
+				eprintln!(
+					"ERROR: Some file error, probably was a directory: \"{}\"",
+					file_name
+				);
 				0
 			}
 		} else {
@@ -759,4 +753,3 @@ fn read_rom(path: &str) -> Result<Vec<u8>, std::io::Error> {
 		Ok(rom)
 	}
 }
-

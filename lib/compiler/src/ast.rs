@@ -2,13 +2,13 @@ pub struct Program {
 	pub namespaces: Vec<Namespace>,
 	pub script_functions: Vec<Function>,
 	pub assembly_functions: Vec<AssemblyFunction>,
-    pub interrupt_handlers: Vec<InterruptHandler>,
+	pub interrupt_handlers: Vec<InterruptHandler>,
 	pub declarations: Vec<GlobalDeclaration>,
 	pub constants: Vec<Constant>,
 }
 
 pub struct Namespace {
-    pub name: String,
+	pub name: String,
 	pub script_functions: Vec<Function>,
 	pub assembly_functions: Vec<AssemblyFunction>,
 	pub declarations: Vec<GlobalDeclaration>,
@@ -28,7 +28,7 @@ pub struct AssemblyFunction {
 }
 
 pub struct InterruptHandler {
-    pub interrupt: Interrupt,
+	pub interrupt: Interrupt,
 	pub parameters: Parameters,
 	pub block: Block,
 }
@@ -50,7 +50,7 @@ pub struct GlobalDeclaration {
 }
 
 pub struct Constant {
-    pub name: String,
+	pub name: String,
 	pub expression: Expression,
 }
 
@@ -68,9 +68,9 @@ pub struct ElseIf {
 #[derive(Clone, Debug)]
 pub enum Statement {
 	Assignment(References, Expressions),
-    Break(Option<String>),
-    Continue(Option<String>),
-    Block(Block),
+	Break(Option<String>),
+	Continue(Option<String>),
+	Block(Block),
 	While(Option<String>, Expression, Block),
 	Loop(Block),
 	Declaration(Declarations),
@@ -128,8 +128,8 @@ pub enum InfixOperator {
 }
 
 pub enum Interrupt {
-    Constant(u8),
-    Identifier(String),
+	Constant(u8),
+	Identifier(String),
 }
 
 pub trait Cardinal {
@@ -147,7 +147,7 @@ impl Cardinal for Block {
 }
 
 impl Cardinal for Statement {
-    fn cardinality(&self) -> usize {
+	fn cardinality(&self) -> usize {
 		match self {
 			Statement::Declaration(_) => 0,
 			Statement::Definition(_, _) => 0,
@@ -156,7 +156,7 @@ impl Cardinal for Statement {
 			Statement::Goto(_) => 0,
 			Statement::Store(_, _, _) => 0,
 			Statement::While(_, _, _) => 0, // TODO: maybe loops also return values?
-			Statement::Loop(_) => 0, // TODO: maybe loops also return values?
+			Statement::Loop(_) => 0,        // TODO: maybe loops also return values?
 			Statement::Block(block) => block.cardinality(),
 			Statement::ExpressionList(expressions) => {
 				let mut cardinality = 0;
@@ -164,44 +164,44 @@ impl Cardinal for Statement {
 					cardinality += expression.cardinality()
 				}
 				cardinality
-			},
+			}
 			Statement::Return(expressions) => {
 				let mut cardinality = 0;
 				for expression in &expressions.0 {
 					cardinality += expression.cardinality()
 				}
 				cardinality
-			},
+			}
 			Statement::Break(_) => 0,
 			Statement::Continue(_) => 0,
 		}
-    }
+	}
 }
 
 impl Cardinal for Expression {
-    fn cardinality(&self) -> usize {
+	fn cardinality(&self) -> usize {
 		match self {
 			Expression::Constant(_) => 1,
 			Expression::Load(_, _) => 1,
 			Expression::Variable(_) => 1,
-			Expression::Conditional(_, positive, negative) =>
-				positive
-					.cardinality()
-					.min(negative
+			Expression::Conditional(_, positive, negative) => positive.cardinality().min(
+				negative
+					.clone()
+					.map(|negative| negative.cardinality())
+					.or(Some(0))
+					.unwrap(),
+			),
+			Expression::ConditionalMultiple(_, positive, _nested, negative) =>
+			// TODO: Nested cardinality
+			{
+				positive.cardinality().min(
+					negative
 						.clone()
 						.map(|negative| negative.cardinality())
 						.or(Some(0))
-						.unwrap()
-					),
-			Expression::ConditionalMultiple(_, positive, _nested, negative) => // TODO: Nested cardinality
-				positive
-					.cardinality()
-					.min(negative
-						.clone()
-						.map(|negative| negative.cardinality())
-						.or(Some(0))
-						.unwrap()
-					),
+						.unwrap(),
+				)
+			}
 			// FIXME: Functions don't know how many values they return, so just
 			// go through all of them
 			Expression::Call(_, _) => usize::MAX,
@@ -210,8 +210,8 @@ impl Cardinal for Expression {
 			// TODO: Support `{ 1, 2 } * 3 = { 3, 6 }
 			// TODO: Support `2 * { 2, 3 } = { 4, 6 }
 			Expression::InfixOperation(_, _, _) => 1,
-            Expression::StringLiteral(_) => 1,
-            Expression::CharacterLiteral(_) => 1,
+			Expression::StringLiteral(_) => 1,
+			Expression::CharacterLiteral(_) => 1,
 		}
-    }
+	}
 }

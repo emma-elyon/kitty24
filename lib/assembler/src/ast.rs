@@ -25,10 +25,10 @@ pub enum Instruction {
 	Less(R),
 	If(IF),
 	Let(I),
-	Load(M),	
-	Store(M),	
-	Pop(M),	
-	Push(M),	
+	Load(M),
+	Store(M),
+	Pop(M),
+	Push(M),
 	Data(Vec<u8>),
 }
 
@@ -75,21 +75,18 @@ pub enum IImmediate {
 	Label {
 		label: Label,
 		byte_index: u8,
-		length: u8
+		length: u8,
 	},
 }
 
 pub enum IFImmediate {
 	Constant(u16),
-	Label(Label)
+	Label(Label),
 }
 
 pub enum RImmediate {
 	Constant(u8),
-	Label {
-		label: Label,
-		byte_index: u8,
-	},
+	Label { label: Label, byte_index: u8 },
 }
 
 pub enum Shift {

@@ -7,9 +7,9 @@ extern crate pest_derive;
 mod ast;
 mod parser;
 
-use common::processor::{*, Op::*};
+use common::processor::{Op::*, *};
 
-use ast::{*, Shift};
+use ast::{Shift, *};
 
 /// Constructs machine code ROM from kitty-assembly source.
 pub struct Assembler {
@@ -32,16 +32,25 @@ pub struct Assembler {
 	label_addresses: HashMap<String, u32>,
 
 	/// Map of references to defined labels.
-	label_references: Vec<LabelReference>, 
+	label_references: Vec<LabelReference>,
 }
 
 /// References a ROM address offset with a label, and optionally a byte range.
 enum LabelReference {
 	/// `length` bytes of a label address, from byte_index.
-	Absolute16 { address: u32, label: String, byte_index: u8, length: u8 },
+	Absolute16 {
+		address: u32,
+		label: String,
+		byte_index: u8,
+		length: u8,
+	},
 
 	/// One byte of a label address, at byte_index.
-	Absolute8 { address: u32, label: String, byte_index: u8 },
+	Absolute8 {
+		address: u32,
+		label: String,
+		byte_index: u8,
+	},
 
 	/// Expands to two bytes' signed offset from a label.
 	Relative16 { address: u32, label: String },
@@ -56,8 +65,7 @@ impl Assembler {
 	}
 
 	/// Assemble ROM from Program AST.
-	fn assemble_program(&mut self, program: Program)
-	-> Result<Vec<u8>, std::io::Error> {
+	fn assemble_program(&mut self, program: Program) -> Result<Vec<u8>, std::io::Error> {
 		let mut rom = Vec::new();
 
 		// Assemble each instruction, deferring label resolution until after
@@ -68,7 +76,7 @@ impl Assembler {
 				self.address = rom.len() as u32;
 			}
 		}
-		
+
 		// Resolve label references, replacing empty bytes in the assembled ROM
 		// with the label value they should have.
 		for reference in &self.label_references {
@@ -81,76 +89,54 @@ impl Assembler {
 				rom[address] = *byte;
 			}
 		}
-		
+
 		Ok(rom)
 	}
-	
+
 	/// Assemble instruction or add label definition, deferring label
 	/// resolution.
-	fn assemble_statement(&mut self, statement: Statement)
-	-> Option<Vec<u8>> {
+	fn assemble_statement(&mut self, statement: Statement) -> Option<Vec<u8>> {
 		match statement {
-			Statement::Instruction(instruction) =>
-				Some(self.assemble_instruction(instruction)),
+			Statement::Instruction(instruction) => Some(self.assemble_instruction(instruction)),
 
 			Statement::Label(label) => {
 				self.assemble_label(label);
 				None
-			},
-			
-			Statement::EndOfInput => None
+			}
+
+			Statement::EndOfInput => None,
 		}
 	}
-	
+
 	/// Assemble instruction of type [R], [RS], [I], [IF], or [M].
-	fn assemble_instruction(&mut self, instruction: Instruction)
-	-> Vec<u8> {
+	fn assemble_instruction(&mut self, instruction: Instruction) -> Vec<u8> {
 		match instruction {
-			Instruction::Or(r) =>
-				self.assemble_r(r, Or),
-			Instruction::Nor(r) =>
-				self.assemble_r(r, Nor),
-			Instruction::And(r) =>
-				self.assemble_r(r, And),
-			Instruction::Xor(r) =>
-				self.assemble_r(r, Xor),
-			Instruction::Add(r) =>
-				self.assemble_r(r, Add),
-			Instruction::Sub(r) =>
-				self.assemble_r(r, Sub),
-			Instruction::Mul(r) =>
-				self.assemble_r(r, Mul),
-			Instruction::ShiftLeft(rs) =>
-				self.assemble_rs(rs, Shift::ShiftLeft),
-			Instruction::ShiftRight(rs) =>
-				self.assemble_rs(rs, Shift::ShiftRight),
-			Instruction::RotateLeft(rs) =>
-				self.assemble_rs(rs, Shift::RotateLeft),
-			Instruction::RotateRight(rs) =>
-				self.assemble_rs(rs, Shift::RotateRight),
-			Instruction::ArithmeticShiftRight(rs) =>
-				self.assemble_rs(rs, Shift::ArithmeticShiftRight),
-			Instruction::SignedLess(r) =>
-				self.assemble_r(r, SignedLess),
-			Instruction::Less(r) =>
-				self.assemble_r(r, Less),
-			Instruction::If(if_) =>
-				self.assemble_if(if_),
-			Instruction::Let(i) =>
-				self.assemble_i(i),
-			Instruction::Load(m) =>
-				self.assemble_m(m, Load),
-			Instruction::Store(m) =>
-				self.assemble_m(m, Store),
-			Instruction::Pop(m) =>
-				self.assemble_m(m, Pop),
-			Instruction::Push(m) =>
-				self.assemble_m(m, Push),
-			Instruction::Data(data) =>
-				self.assemble_data(data),
+			Instruction::Or(r) => self.assemble_r(r, Or),
+			Instruction::Nor(r) => self.assemble_r(r, Nor),
+			Instruction::And(r) => self.assemble_r(r, And),
+			Instruction::Xor(r) => self.assemble_r(r, Xor),
+			Instruction::Add(r) => self.assemble_r(r, Add),
+			Instruction::Sub(r) => self.assemble_r(r, Sub),
+			Instruction::Mul(r) => self.assemble_r(r, Mul),
+			Instruction::ShiftLeft(rs) => self.assemble_rs(rs, Shift::ShiftLeft),
+			Instruction::ShiftRight(rs) => self.assemble_rs(rs, Shift::ShiftRight),
+			Instruction::RotateLeft(rs) => self.assemble_rs(rs, Shift::RotateLeft),
+			Instruction::RotateRight(rs) => self.assemble_rs(rs, Shift::RotateRight),
+			Instruction::ArithmeticShiftRight(rs) => {
+				self.assemble_rs(rs, Shift::ArithmeticShiftRight)
+			}
+			Instruction::SignedLess(r) => self.assemble_r(r, SignedLess),
+			Instruction::Less(r) => self.assemble_r(r, Less),
+			Instruction::If(if_) => self.assemble_if(if_),
+			Instruction::Let(i) => self.assemble_i(i),
+			Instruction::Load(m) => self.assemble_m(m, Load),
+			Instruction::Store(m) => self.assemble_m(m, Store),
+			Instruction::Pop(m) => self.assemble_m(m, Pop),
+			Instruction::Push(m) => self.assemble_m(m, Push),
+			Instruction::Data(data) => self.assemble_data(data),
 		}
 	}
-	
+
 	/// Add label with address to lookup table, used later for resolving label
 	/// references.
 	fn assemble_label(&mut self, label: Label) {
@@ -160,7 +146,7 @@ impl Assembler {
 			Label::Global(string) => {
 				self.label = string.clone();
 				self.label_addresses.insert(string, self.address);
-			},
+			}
 
 			// Local label has global label prepended.
 			Label::Local(string) => {
@@ -179,17 +165,20 @@ impl Assembler {
 		// For `let`, the immediate might be a label reference byte range.
 		match i.immediate {
 			IImmediate::Constant(value) => immediate = value,
-			IImmediate::Label { label, byte_index, length } =>
-				self.assemble_label_reference_16(label, byte_index, length),
+			IImmediate::Label {
+				label,
+				byte_index,
+				length,
+			} => self.assemble_label_reference_16(label, byte_index, length),
 		};
 
 		vec![
-		   operation << 4 | destination,
-		   (immediate >> 8) as u8,
-		   immediate as u8,
+			operation << 4 | destination,
+			(immediate >> 8) as u8,
+			immediate as u8,
 		]
 	}
-	
+
 	/// Assemble 16-bit immediate branch on non-zero instruction; `if`.
 	fn assemble_if(&mut self, if_: IF) -> Vec<u8> {
 		let operation: u8 = If.into();
@@ -199,17 +188,16 @@ impl Assembler {
 		// For `if`, the immediate might be a relative label reference.
 		match if_.immediate {
 			IFImmediate::Constant(value) => immediate = value,
-			IFImmediate::Label(label) =>
-				self.assemble_relative_label_reference(label),
+			IFImmediate::Label(label) => self.assemble_relative_label_reference(label),
 		};
 
 		vec![
-		   operation << 4 | destination,
-		   (immediate >> 8) as u8,
-		   immediate as u8,
+			operation << 4 | destination,
+			(immediate >> 8) as u8,
+			immediate as u8,
 		]
 	}
-	
+
 	/// Assemble memory access instruction; `ld`, `st`, `pop`, `push`.
 	fn assemble_m(&mut self, m: M, op: Op) -> Vec<u8> {
 		let operation: u8 = op.clone().into();
@@ -217,23 +205,23 @@ impl Assembler {
 		let source: u8 = m.source.into();
 		let byte_count = m.byte_count;
 		let immediate = m.immediate;
-		
+
 		// `ld` and `pop` have their instruction source and destination
 		// registers flipped, to ease decoding by the virtual machine.
 		match op {
 			Load | Pop => vec![
-			   operation << 4 | source,
-			   destination << 4 | byte_count << 2 | (immediate >> 8) as u8 & 0b11,
-			   immediate as u8
+				operation << 4 | source,
+				destination << 4 | byte_count << 2 | (immediate >> 8) as u8 & 0b11,
+				immediate as u8,
 			],
 			_ => vec![
-			   operation << 4 | destination,
-			   source << 4 | byte_count << 2 | (immediate >> 8) as u8 & 0b11,
-			   immediate as u8
-			]
+				operation << 4 | destination,
+				source << 4 | byte_count << 2 | (immediate >> 8) as u8 & 0b11,
+				immediate as u8,
+			],
 		}
 	}
-	
+
 	/// Register-register instruction. `or`, `and`, `add`, `mul`, etc.
 	fn assemble_r(&mut self, r: R, op: Op) -> Vec<u8> {
 		let operation: u8 = op.into();
@@ -246,17 +234,18 @@ impl Assembler {
 		// reference.
 		match r.immediate {
 			RImmediate::Constant(value) => immediate = value,
-			RImmediate::Label { label, byte_index } =>
+			RImmediate::Label { label, byte_index } => {
 				self.assemble_label_reference_8(label, byte_index)
+			}
 		};
 
 		vec![
 			operation << 4 | destination,
 			source << 4 | target,
-			immediate
+			immediate,
 		]
 	}
-	
+
 	/// Register-register shift instruction. `shl`, `shr`, `rotl`, `rotr`,
 	/// `ashl`.
 	fn assemble_rs(&mut self, rs: RS, shift: Shift) -> Vec<u8> {
@@ -269,35 +258,29 @@ impl Assembler {
 		vec![
 			operation << 4 | destination,
 			source << 4 | target,
-			kind << 5 | immediate
+			kind << 5 | immediate,
 		]
 	}
-	
+
 	/// Raw data storage. This is just an excessive identity function currently.
 	fn assemble_data(&mut self, data: Vec<u8>) -> Vec<u8> {
 		data
 	}
-	
+
 	/// 16-bit relative label reference, used for `if`.
 	fn assemble_relative_label_reference(&mut self, label: Label) {
 		let address = self.address;
 		match label {
 			// Global labels are used as is.
 			Label::Global(label) => {
-				let label_reference = LabelReference::Relative16 {
-					address,
-					label
-				};
+				let label_reference = LabelReference::Relative16 { address, label };
 				self.label_references.push(label_reference);
 			}
 
 			// Local labels have the current global label prepended.
 			Label::Local(label) => {
 				let label = format!("{}.{}", self.label, label);
-				let label_reference = LabelReference::Relative16 {
-					address,
-					label
-				};
+				let label_reference = LabelReference::Relative16 { address, label };
 				self.label_references.push(label_reference);
 			}
 		}
@@ -312,7 +295,7 @@ impl Assembler {
 				let label_reference = LabelReference::Absolute8 {
 					address,
 					label,
-					byte_index
+					byte_index,
 				};
 				self.label_references.push(label_reference);
 			}
@@ -323,20 +306,15 @@ impl Assembler {
 				let label_reference = LabelReference::Absolute8 {
 					address,
 					label,
-					byte_index
+					byte_index,
 				};
 				self.label_references.push(label_reference);
 			}
 		}
 	}
-	
+
 	/// 16-bit absolute label byte range, used for `let`.
-	fn assemble_label_reference_16(
-		&mut self,
-		label: Label,
-		byte_index: u8,
-		length: u8
-	) {
+	fn assemble_label_reference_16(&mut self, label: Label, byte_index: u8, length: u8) {
 		let address = self.address;
 		match label {
 			// Global labels are used as is.
@@ -345,7 +323,7 @@ impl Assembler {
 					address,
 					label,
 					byte_index,
-					length
+					length,
 				};
 				self.label_references.push(label_reference);
 			}
@@ -357,28 +335,38 @@ impl Assembler {
 					address,
 					label,
 					byte_index,
-					length
+					length,
 				};
 				self.label_references.push(label_reference);
 			}
 		}
 	}
-	
+
 	/// Returns insertion address and label address bytes to insert.
-	fn resolve_reference(&self, reference: &LabelReference)
-	-> Result<(u32, Vec<u8>), std::io::Error> {
+	fn resolve_reference(
+		&self,
+		reference: &LabelReference,
+	) -> Result<(u32, Vec<u8>), std::io::Error> {
 		match reference {
 			// 16-bit absolute label reference. Used for `let`.
-			LabelReference::Absolute16 { address, label, byte_index, length } =>
-				self.resolve_absolute16(*address, label, *byte_index, *length),
+			LabelReference::Absolute16 {
+				address,
+				label,
+				byte_index,
+				length,
+			} => self.resolve_absolute16(*address, label, *byte_index, *length),
 
 			// 8-bit absolute label reference. Used for R-instructions.
-			LabelReference::Absolute8 { address, label, byte_index } =>
-				self.resolve_absolute8(*address, label, *byte_index),
+			LabelReference::Absolute8 {
+				address,
+				label,
+				byte_index,
+			} => self.resolve_absolute8(*address, label, *byte_index),
 
 			// 16-bit relative label reference. Used for `if`.
-			LabelReference::Relative16 { address, label } =>
-				self.resolve_relative16(*address, label),
+			LabelReference::Relative16 { address, label } => {
+				self.resolve_relative16(*address, label)
+			}
 		}
 	}
 
@@ -396,11 +384,11 @@ impl Assembler {
 			// Insert bytes one byte into the instruction to skip opcode and
 			// destination register.
 			let byte_offset = 1;
-			
+
 			// Insert label address bytes at the reference address' immediate
 			// byte offset.
 			let reference_address = address + byte_offset;
-			
+
 			// Collect bytes from the absolute address, skipping the high byte
 			// of the four bytes (it's always zero as only 24 bits are
 			// supported.)
@@ -408,32 +396,34 @@ impl Assembler {
 			let bytes = match length {
 				// In case only one byte is specified, zero out the high byte.
 				1 => vec![0, address_bytes[byte_index as usize + 1]],
-				
+
 				// Else use two bytes.
 				2 => vec![
 					address_bytes[byte_index as usize + 1],
-					address_bytes[byte_index as usize + 2]
+					address_bytes[byte_index as usize + 2],
 				],
-				_ => return Err(std::io::Error::new(
-					ErrorKind::InvalidInput,
-					format!(
-						"Too large byte range: [{}:{}]",
-						byte_index,
-						byte_index + length - 1,
-					)
-				))
+				_ => {
+					return Err(std::io::Error::new(
+						ErrorKind::InvalidInput,
+						format!(
+							"Too large byte range: [{}:{}]",
+							byte_index,
+							byte_index + length - 1,
+						),
+					))
+				}
 			};
-			
+
 			// Return insertion ROM address, and label address bytes to insert.
 			Ok((reference_address, bytes))
 		} else {
 			Err(std::io::Error::new(
 				ErrorKind::NotFound,
-				format!("Label not found: '{}'", label)
+				format!("Label not found: '{}'", label),
 			))
 		}
 	}
-	
+
 	/// Resolves label reference to address, selecting `length` address bytes
 	/// (up to two) from `byte_index`.
 	fn resolve_absolute8(
@@ -451,7 +441,7 @@ impl Assembler {
 			// Insert label address bytes at the reference address' immediate
 			// byte offset.
 			let reference_address = address + byte_offset;
-			
+
 			// Collect byte from the absolute address, skipping the high byte of
 			// the four bytes (It's always zero as only 24 bits are supported.)
 			let address_bytes = label_address.to_be_bytes();
@@ -462,11 +452,11 @@ impl Assembler {
 		} else {
 			Err(std::io::Error::new(
 				ErrorKind::NotFound,
-				format!("Label not found: '{}'", label)
+				format!("Label not found: '{}'", label),
 			))
 		}
 	}
-	
+
 	fn resolve_relative16(
 		&self,
 		address: u32,
@@ -477,40 +467,40 @@ impl Assembler {
 			// Insert bytes one byte into the instruction to skip opcode and
 			// destination register.
 			let byte_offset = 1;
-			
+
 			// Insert relative label address bytes at the reference address'
 			// immediate byte offset.
 			let reference_address = address + byte_offset;
-			
+
 			// Calculate relative offset bytes.
 			let address_offset = label_address as i32 - address as i32;
 			let bytes = (address_offset as i16).to_be_bytes().to_vec();
-			
+
 			// Return insertion ROM address, and relative label offset bytes
 			// to insert.
 			Ok((reference_address, bytes))
 		} else {
 			Err(std::io::Error::new(
 				ErrorKind::NotFound,
-				format!("Label not found: '{}'", label)
+				format!("Label not found: '{}'", label),
 			))
 		}
 	}
 }
 
 impl Default for Assembler {
-    fn default() -> Self {
-        Self {
+	fn default() -> Self {
+		Self {
 			address: 0,
 			label: String::new(),
 			label_addresses: HashMap::new(),
 			label_references: Vec::new(),
 		}
-    }
+	}
 }
 
 impl From<Shift> for u8 {
-    fn from(value: Shift) -> Self {
+	fn from(value: Shift) -> Self {
 		match value {
 			Shift::ShiftLeft => 0b000,
 			Shift::ShiftRight => 0b001,
@@ -518,11 +508,11 @@ impl From<Shift> for u8 {
 			Shift::RotateRight => 0b011,
 			Shift::ArithmeticShiftRight => 0b101,
 		}
-    }
+	}
 }
 
 impl From<Register> for u8 {
-    fn from(value: Register) -> Self {
+	fn from(value: Register) -> Self {
 		match value {
 			Register::R0 => 0,
 			Register::R1 => 1,
@@ -541,7 +531,7 @@ impl From<Register> for u8 {
 			Register::RE => 0xE,
 			Register::RF => 0xF,
 		}
-    }
+	}
 }
 
 /*
@@ -579,7 +569,7 @@ fn _assemble_program(program: Pairs<Rule>) -> Result<Vec<u8>, std::io::Error> {
 	let mut label_definitions = HashMap::new();
 	let mut label_references = HashMap::new();
 	let mut address = 0;
-	
+
 	// Local labels start with ".", and have the previous non-local label
 	// prepended to their name, so `.loop` becomes `main.loop` in terms of
 	// lookup.
@@ -597,7 +587,7 @@ fn _assemble_program(program: Pairs<Rule>) -> Result<Vec<u8>, std::io::Error> {
 				let (bytes, label) = assemble_instruction(instruction)?;
 				let length = bytes.len();
 				rom.extend(bytes);
-				
+
 				// Store label references with address and offset for relative
 				// addressing in the label resolution step.
 				if let Some((label, offset)) = label {
@@ -606,7 +596,7 @@ fn _assemble_program(program: Pairs<Rule>) -> Result<Vec<u8>, std::io::Error> {
 
 				address += length;
 			},
-			
+
 			// routine:
 			Rule::LabelDefinition => {
 				let statement = statement.into_inner().next().unwrap();
@@ -621,14 +611,14 @@ fn _assemble_program(program: Pairs<Rule>) -> Result<Vec<u8>, std::io::Error> {
 
 						// Update scope to refer to this non-local label.
 						scope = label;
-						
+
 						eprintln!("{}:", scope);
 					},
-					
+
 					// Local label has scope prepended.
 					Rule::LocalLabel => {
 						let label = statement.as_str();
-						
+
 						// Prepend current scope.
 						let label = format!("{}.{}", scope, label);
 
@@ -638,7 +628,7 @@ fn _assemble_program(program: Pairs<Rule>) -> Result<Vec<u8>, std::io::Error> {
 
 						eprintln!("{}:", label);
 					},
-					
+
 					_ => unreachable!("{:?}", statement)
 				}
 			},
@@ -647,7 +637,7 @@ fn _assemble_program(program: Pairs<Rule>) -> Result<Vec<u8>, std::io::Error> {
 			_ => unimplemented!("{:?}", statement)
 		}
 	}
-	
+
 	// Resolve labels, replacing empty bytes in the assembled ROM with the label
 	// value they should have.
 	for (pair, (instruction_address, immediate_offset, scope)) in label_references {
@@ -659,7 +649,7 @@ fn _assemble_program(program: Pairs<Rule>) -> Result<Vec<u8>, std::io::Error> {
 			// Relative label, used for IF-instructions.
 			Rule::Label => {
 				let label = pair.as_str();
-				
+
 				// Look up the label definition's absolute address.
 				if let Some(&label_address) = label_definitions.get(label) {
 					let relative_offset =
@@ -686,9 +676,9 @@ fn _assemble_program(program: Pairs<Rule>) -> Result<Vec<u8>, std::io::Error> {
 			// Relative local label, used for IF-instructions.
 			Rule::LocalLabel => {
 				let label = format!("{}.{}", scope, pair.as_str());
-				
+
 				eprintln!("ref '{}'", label.clone());
-				
+
 				// Look up the label definition's absolute address.
 				if let Some(&label_address) = label_definitions.get(label.as_str()) {
 					let relative_offset =
@@ -711,7 +701,7 @@ fn _assemble_program(program: Pairs<Rule>) -> Result<Vec<u8>, std::io::Error> {
 					)
 				}
 			},
-			
+
 			// Absolute 8-bit label segment, used for R-instructions.
 			Rule::Label8 => {
 				let mut arguments = pair.clone().into_inner();
@@ -743,12 +733,12 @@ fn _assemble_program(program: Pairs<Rule>) -> Result<Vec<u8>, std::io::Error> {
 					)
 				}
 			}
-			
+
 			// Absolute 16-bit label segment, used for I-instructions.
 			Rule::Label16 => {
 				let mut arguments = pair.clone().into_inner();
 				let label = arguments.next().unwrap().as_str();
-				
+
 				// Look up the label definition's absolute address.
 				if let Some(&label_address) = label_definitions.get(label) {
 					let argument =  arguments.next().unwrap();
@@ -777,7 +767,7 @@ fn _assemble_program(program: Pairs<Rule>) -> Result<Vec<u8>, std::io::Error> {
 								let y = bytes[to + 1];
 								rom[injection_address] = x;
 								rom[injection_address + 1] = y;
-								
+
 							} else {
 								return Err(
 									std::io::Error::new(
@@ -787,7 +777,7 @@ fn _assemble_program(program: Pairs<Rule>) -> Result<Vec<u8>, std::io::Error> {
 								)
 							}
 						}
-						
+
 						// One byte requested.
 						Rule::ByteIndex => {
 							let byte_index = argument
@@ -818,7 +808,7 @@ fn _assemble_program(program: Pairs<Rule>) -> Result<Vec<u8>, std::io::Error> {
 					)
 				}
 			},
-			
+
 			_ => todo!("{}", pair),
 		}
 	}
@@ -866,7 +856,7 @@ fn i(instruction: Pair<Rule>, op: Op) -> LabelResult {
 	// Assemble immediate.
 	let immediate = arguments.next().unwrap();
 	let (immediate, label) = read_value16(immediate);
-	
+
 	Ok(
 		(
 			vec![
@@ -892,7 +882,7 @@ fn if_(instruction: Pair<Rule>, op: Op) -> LabelResult {
 	// Assemble immediate.
 	let immediate = arguments.next().unwrap();
 	let (immediate, label) = read_relative_value16(immediate);
-	
+
 	Ok(
 		(
 			vec![
@@ -912,13 +902,13 @@ fn if_(instruction: Pair<Rule>, op: Op) -> LabelResult {
 //  ld r1
 fn m(instruction: Pair<Rule>, op: Op) -> LabelResult {
 	let mut arguments = instruction.into_inner();
-	
+
 	let operation = u8::from(op);
-	
+
 	// Assemble destination register.
 	let register = arguments.next().unwrap().as_str();
 	let register = register_index(register);
-	
+
 	let mut source = None;
 	let mut bytes = None;
 	let mut immediate = None;
@@ -928,9 +918,9 @@ fn m(instruction: Pair<Rule>, op: Op) -> LabelResult {
 	if let Some(argument) = arguments.next() {
 		match argument.as_rule() {
 			// Second argument is a register (source)
-			Rule::Register => 
+			Rule::Register =>
 				source = Some(register_index(argument.as_str())),
-			
+
 			Rule::Number2 =>
 				bytes = Some(read_number2(argument)),
 
@@ -942,7 +932,7 @@ fn m(instruction: Pair<Rule>, op: Op) -> LabelResult {
 		bytes = Some(1);
 		immediate = Some(0);
 	}
-	
+
 	// If the second argument was a byte count, the third argument has to be the
 	// immediate (or left out).
 	if bytes.is_some() && immediate.is_none() {
@@ -951,12 +941,12 @@ fn m(instruction: Pair<Rule>, op: Op) -> LabelResult {
 		} else {
 			Some(0)
 		};
-	
+
 	// If the second argument was the source register, the third argument has to
 	// be the byte count, or left out.
 	} else if let Some(argument) = arguments.next() {
 		bytes = Some(read_number2(argument));
-	
+
 	// In case the byte count is left out, set default values.
 	} else {
 		source = source.or(Some(register));
@@ -967,7 +957,7 @@ fn m(instruction: Pair<Rule>, op: Op) -> LabelResult {
 	// At this point we're guaranteed to have values for source and byte count.
 	let source = source.unwrap();
 	let bytes = bytes.unwrap();
-	
+
 	// If there is a fourth argument, it has to be the immediate.
 	let immediate = if let Some(argument) = arguments.next() {
 		Some(read_signed_number10(argument))
@@ -977,7 +967,7 @@ fn m(instruction: Pair<Rule>, op: Op) -> LabelResult {
 
 	// We now have all the values.
 	let immediate = immediate.unwrap();
-	
+
 	Ok(
 		(
 			vec![
@@ -990,14 +980,14 @@ fn m(instruction: Pair<Rule>, op: Op) -> LabelResult {
 	)
 }
 
-	
+
 
 /// `Register ~ ("," ~ Register){1, 2}? ~ ("," ~ Value8)?`
 fn r(instruction: Pair<Rule>, op: Op) -> LabelResult {
 	let mut arguments = instruction.clone().into_inner();
 
 	let operation = u8::from(op.clone());
-	
+
 	// Assemble destination register.
 	let register = arguments.next().unwrap().as_str();
 	let register = register_index(register);
@@ -1006,7 +996,7 @@ fn r(instruction: Pair<Rule>, op: Op) -> LabelResult {
 	let mut target = None;
 	let mut immediate = None;
 	let mut label = None;
-	
+
 	// Determine whether the second argument is a register (source) or a value.
 	if let Some(argument) = arguments.next() {
 		match argument.as_rule() {
@@ -1017,7 +1007,7 @@ fn r(instruction: Pair<Rule>, op: Op) -> LabelResult {
 			// Second argument is a value (immediate)
 			Rule::Number8 =>
 				immediate = Some(read_value8(argument)),
-			
+
 			// Second argument is a label (immediate)
 			Rule::Label8 => {
 				immediate = Some(0);
@@ -1034,7 +1024,7 @@ fn r(instruction: Pair<Rule>, op: Op) -> LabelResult {
 			)
 		);
 	}
-	
+
 	// Determine whether the third argument is a register (source/target) or a
 	// value.
 	if immediate.is_none() {
@@ -1064,24 +1054,24 @@ fn r(instruction: Pair<Rule>, op: Op) -> LabelResult {
 			}
 		}
 	}
-	
+
 	// If there is a fourth argument, it has to be the immediate.
 	if let Some(argument) = arguments.next() {
 		match argument.as_rule() {
 			// Immediate is a value.
 			Rule::Number8 =>
 				immediate = Some(read_value8(argument)),
-				
+
 			// Immediate is a label.
 			Rule::Label8 => {
 				immediate = Some(0);
 				label = Some((argument, 2));
 			}
-			
+
 			_ => unreachable!()
 		}
 	}
-	
+
 	// To avoid pointless instructions, `mul` immediate defaults to `1` instead
 	// of `0`, and `and` immediate defaults to `$FF` (mask out nothing).
 	// Note: In case of an immediate label, the default won't apply anyway.
@@ -1112,7 +1102,7 @@ fn r(instruction: Pair<Rule>, op: Op) -> LabelResult {
 /// `Register ~ ("," ~ Register){1, 2} ~ ("," ~ Number5)?`
 fn rs(instruction: Pair<Rule>) -> LabelResult {
 	let mut arguments = instruction.clone().into_inner();
-	
+
 	// Determine the operation kind code based on the instruction.
 	let kind = match instruction.as_rule() {
 		Rule::ShiftLeft => 0b000,
@@ -1122,7 +1112,7 @@ fn rs(instruction: Pair<Rule>) -> LabelResult {
 		Rule::ArithmeticShiftRight => 0b101,
 		_ => unreachable!()
 	};
-	
+
 	// Assemble destination register.
 	let register = arguments.next().unwrap().as_str();
 	let register = register_index(register);
@@ -1131,7 +1121,7 @@ fn rs(instruction: Pair<Rule>) -> LabelResult {
 	let mut source = None;
 	let mut target = None;
 	let mut immediate = None;
-	
+
 	// Determine whether the second argument is a register (source) or a value.
 	if let Some(argument) = arguments.next() {
 		match argument.as_rule() {
@@ -1153,7 +1143,7 @@ fn rs(instruction: Pair<Rule>) -> LabelResult {
 			)
 		);
 	}
-	
+
 	// Determine whether the third argument is a register (source/target) or a
 	// value.
 	if immediate.is_none() {
@@ -1177,12 +1167,12 @@ fn rs(instruction: Pair<Rule>) -> LabelResult {
 			}
 		}
 	}
-	
+
 	// If there is a fourth argument, it has to be the immediate.
 	if let Some(argument) = arguments.next() {
 		immediate = Some(read_number5(argument));
 	}
-	
+
 	// Assign default values to arguments.
 	// If source is not given, the destination register is assumed source.
 	let source = source.unwrap_or(register);
@@ -1278,7 +1268,7 @@ fn read_number8(number: Pair<Rule>) -> u8 {
 		// $F0
 		Rule::Hexadecimal8 =>
 			u8::from_str_radix(number.as_str(), 0x10).unwrap(),
-		
+
 		// %11010100
 		Rule::Binary8 =>
 			u8::from_str_radix(number.as_str(), 0b10).unwrap(),
@@ -1294,7 +1284,7 @@ fn read_number8(number: Pair<Rule>) -> u8 {
 fn read_value16(value: Pair<Rule>) -> (u16, Option<Pair<Rule>>) {
 	match value.as_rule() {
 		Rule::Number16 => (read_number16(value), None),
-		
+
 		Rule::Label16 => (0, Some(value)),
 
 		_ => unreachable!("{}", value)
@@ -1304,7 +1294,7 @@ fn read_value16(value: Pair<Rule>) -> (u16, Option<Pair<Rule>>) {
 fn read_relative_value16(value: Pair<Rule>) -> (u16, Option<Pair<Rule>>) {
 	match value.as_rule() {
 		Rule::Number16 => (read_number16(value), None),
-		
+
 		Rule::Label | Rule::LocalLabel => (0, Some(value)),
 
 		_ => unreachable!("{}", value)
@@ -1336,9 +1326,9 @@ fn read_number16(number: Pair<Rule>) -> u16 {
 
 fn read_signed_number10(number: Pair<Rule>) -> i16 {
 	let negative = number.as_str().starts_with('-') as i16;
-	
+
 	let value = number.as_str().parse::<u16>().unwrap() as i16;
-	
+
 	value * (1 - negative) - value * negative
 }
 */
