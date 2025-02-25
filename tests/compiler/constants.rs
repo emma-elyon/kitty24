@@ -2,7 +2,7 @@ use super::assert_exit_codes;
 
 #[test]
 fn constant_value() {
-	let source = r"
+    let source = r"
 		const X = 44
 		const Y, Z = 5, -4
 
@@ -11,12 +11,12 @@ fn constant_value() {
 			a
 		}
 	";
-	assert_exit_codes(source, &[42]);
+    assert_exit_codes(source, &[42]);
 }
 
 #[test]
 fn constant_expression() {
-	let source = r"
+    let source = r"
 		const X = 44
 		const Y, Z = 5, 4 - X
 
@@ -26,5 +26,5 @@ fn constant_expression() {
 			b
 		}
 	";
-	assert_exit_codes(source, &[44 - 5 + 40 - 1 + 44]);
+    assert_exit_codes(source, &[44 - 5 + 40 - 1 + 44]);
 }

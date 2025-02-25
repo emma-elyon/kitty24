@@ -2,7 +2,7 @@ use super::assert_exit_codes;
 
 #[test]
 fn decimal_literal() {
-	let source = r"
+    let source = r"
 		const X = 20
 
 		main() {
@@ -10,12 +10,12 @@ fn decimal_literal() {
 			a + 2
 		}
 	";
-	assert_exit_codes(source, &[42]);
+    assert_exit_codes(source, &[42]);
 }
 
 #[test]
 fn hexadecimal_literal() {
-	let source = r"
+    let source = r"
 		const X = 0x20
 
 		main() {
@@ -23,12 +23,12 @@ fn hexadecimal_literal() {
 			a + 0x2
 		}
 	";
-	assert_exit_codes(source, &[0x20 + 0x20 + 2]);
+    assert_exit_codes(source, &[0x20 + 0x20 + 2]);
 }
 
 #[test]
 fn binary_literal() {
-	let source = r"
+    let source = r"
 		const X = 0b10
 
 		main() {
@@ -36,7 +36,7 @@ fn binary_literal() {
 			a + 0b1
 		}
 	";
-	assert_exit_codes(source, &[0b10 + 0b10 + 1]);
+    assert_exit_codes(source, &[0b10 + 0b10 + 1]);
 }
 
 #[test]

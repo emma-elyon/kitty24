@@ -36,13 +36,17 @@ or  rF, rD, $FF
 pub fn assert_exit_code(source: &str, exit_code: i32) -> Result<(), String> {
     let source = [PROLOGUE, source, EPILOGUE].join("\n");
     let rom = Assembler::assemble(&source).map_err(|_| "Parse error")?;
-	let mut result = Rc::new(0);
-    let mut virtual_machine = VirtualMachine::new(rom, |exit_code| *Rc::get_mut(&mut result).unwrap() = exit_code[1], false);
+    let mut result = Rc::new(0);
+    let mut virtual_machine = VirtualMachine::new(
+        rom,
+        |exit_code| *Rc::get_mut(&mut result).unwrap() = exit_code[1],
+        false,
+    );
     let mut display = vec![0; DISPLAY_BUFFER_SIZE];
-	for _ in 0..60 {
-		virtual_machine.run(&mut display, None);
-	}
-	assert_eq!((*result << 8) as i32 >> 8, exit_code);
+    for _ in 0..60 {
+        virtual_machine.run(&mut display, None);
+    }
+    assert_eq!((*result << 8) as i32 >> 8, exit_code);
     Ok(())
 }
 
@@ -50,18 +54,17 @@ pub fn assert_exit_code(source: &str, exit_code: i32) -> Result<(), String> {
 pub fn assert_parse_errors(source: &str) -> Result<(), String> {
     let source = [PROLOGUE, source, EPILOGUE].join("\n");
     let rom = Assembler::assemble(&source);
-	match rom {
-		Err(_) => Ok(()),
-		Ok(_) => Err("Expected error".to_string()),
-	}
+    match rom {
+        Err(_) => Ok(()),
+        Ok(_) => Err("Expected error".to_string()),
+    }
 }
 
 #[should_panic]
 pub fn _assert_runtime_errors(source: &str) -> Result<(), String> {
     let source = [PROLOGUE, source, EPILOGUE].join("\n");
     let rom = Assembler::assemble(&source).map_err(|_| "Parse error")?;
-	let mut display = vec![0; DISPLAY_BUFFER_SIZE];
-    VirtualMachine::new(rom, |_| { }, false).run(&mut display, None);
-	Err("Expected panic".to_string())
+    let mut display = vec![0; DISPLAY_BUFFER_SIZE];
+    VirtualMachine::new(rom, |_| {}, false).run(&mut display, None);
+    Err("Expected panic".to_string())
 }
-

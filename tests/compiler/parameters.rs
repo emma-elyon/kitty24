@@ -2,7 +2,7 @@ use super::assert_exit_codes;
 
 #[test]
 fn function_parameters() {
-	let source = r"
+    let source = r"
 		add(a, b) {
 			a + b
 		}
@@ -15,5 +15,5 @@ fn function_parameters() {
 			5
 		}
 	";
-	assert_exit_codes(source, &[10]);
+    assert_exit_codes(source, &[10]);
 }

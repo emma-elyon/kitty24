@@ -2,7 +2,7 @@ use super::assert_exit_codes;
 
 #[test]
 fn namespace_function() {
-	let source = r"
+    let source = r"
 		foo {
 			bar() {
 				foo::baz()
@@ -17,12 +17,12 @@ fn namespace_function() {
 			foo::bar()
 		}
 	";
-	assert_exit_codes(source, &[42])
+    assert_exit_codes(source, &[42])
 }
 
 #[test]
 fn namespace_constant() {
-	let source = r"
+    let source = r"
 		foo {
 			const BAR = 42
 		}
@@ -31,12 +31,12 @@ fn namespace_constant() {
 			foo::BAR
 		}
 	";
-	assert_exit_codes(source, &[42])
+    assert_exit_codes(source, &[42])
 }
 
 #[test]
 fn namespace_global() {
-	let source = r"
+    let source = r"
 		foo {
 			let bar = 41
 		}
@@ -46,5 +46,5 @@ fn namespace_global() {
 			foo::bar
 		}
 	";
-	assert_exit_codes(source, &[42])
+    assert_exit_codes(source, &[42])
 }

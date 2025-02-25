@@ -19,7 +19,7 @@ fn break_script() {
 
 #[test]
 fn break_label_script() {
-	let source = r"
+    let source = r"
 		main() {
 			let foo = 0
 			let bar = 12
@@ -37,12 +37,12 @@ fn break_label_script() {
 			foo, bar
 		}
 	";
-	assert_exit_codes(source, &[42, 144])
+    assert_exit_codes(source, &[42, 144])
 }
 
 #[test]
 fn continue_script() {
-	let source = r"
+    let source = r"
 		main() {
 			let foo = 0
 			let bar = 0
@@ -56,12 +56,12 @@ fn continue_script() {
 			bar
 		}
 	";
-	assert_exit_codes(source, &[42])
+    assert_exit_codes(source, &[42])
 }
 
 #[test]
 fn continue_label_script() {
-	let source = r"
+    let source = r"
 		main() {
 			let foo = 0
 			let bar = 0
@@ -75,12 +75,12 @@ fn continue_label_script() {
 			bar
 		}
 	";
-	assert_exit_codes(source, &[42])
+    assert_exit_codes(source, &[42])
 }
 
 #[test]
 fn return_script() {
-	let source = r"
+    let source = r"
 		add(a, b) {
 			if a > b {
 				return 42
@@ -96,12 +96,12 @@ fn return_script() {
 			return x
 		}
 	";
-	assert_exit_codes(source, &[93])
+    assert_exit_codes(source, &[93])
 }
 
 #[test]
 fn return_multiple_script() {
-	let source = r"
+    let source = r"
 		mix(a, b) {
 			if a > b {
 				return 42
@@ -118,12 +118,12 @@ fn return_multiple_script() {
 			return x, 100 - y
 		}
 	";
-	assert_exit_codes(source, &[93, 42])
+    assert_exit_codes(source, &[93, 42])
 }
 
 #[test]
 fn nested_if_script() {
-	let source = r"
+    let source = r"
 		main() {
 			let x = 44
 			if x > 0 {
@@ -136,7 +136,7 @@ fn nested_if_script() {
 			x
 		}
 	";
-	assert_exit_codes(source, &[42]);
+    assert_exit_codes(source, &[42]);
 }
 
 #[test]
@@ -186,7 +186,7 @@ fn nested_if_else_if_script() {
 
 #[test]
 fn nested_while_script() {
-	let source = r"
+    let source = r"
 		main() {
 			let x = 2
 			while x > 0 {
@@ -200,24 +200,24 @@ fn nested_while_script() {
 		}
 	";
 
-	assert_exit_codes(source, &[42]);
+    assert_exit_codes(source, &[42]);
 }
 
 #[test]
 fn local_variable_script() {
-	let source = r"
+    let source = r"
 		main() {
 			let b = 21
 			b
 		}
 	";
 
-	assert_exit_codes(source, &[21]);
+    assert_exit_codes(source, &[21]);
 }
 
 #[test]
 fn recursion_script() {
-	let source = r"
+    let source = r"
 		fib(n) {
 			if n == 0 || n == 1 {
 				n
@@ -231,12 +231,12 @@ fn recursion_script() {
 		}
 	";
 
-	assert_exit_codes(source, &[21]);
+    assert_exit_codes(source, &[21]);
 }
 
 #[test]
 fn vblank_script() {
-	let source = r"
+    let source = r"
 		let b = 1
 		let c = 2
 
@@ -252,12 +252,12 @@ fn vblank_script() {
 		}
 	";
 
-	assert_exit_codes(source, &[42, 3]);
+    assert_exit_codes(source, &[42, 3]);
 }
 
 #[test]
 fn logical_conjunction_script() {
-	let source = r"
+    let source = r"
 		main() {
 			let b = 43
 			let c = 44
@@ -287,12 +287,12 @@ fn logical_conjunction_script() {
 		}
 	";
 
-	assert_exit_codes(source, &[43, 42, 45, 46, 47, 48]);
+    assert_exit_codes(source, &[43, 42, 45, 46, 47, 48]);
 }
 
 #[test]
 fn memory_direct_script() {
-	let source = r"
+    let source = r"
 		main() {
 			[16384] = 240
 			let b = [16384]
@@ -300,73 +300,73 @@ fn memory_direct_script() {
 		}
 	";
 
-	assert_exit_codes(source, &[240]);
+    assert_exit_codes(source, &[240]);
 }
 
 #[test]
 fn less_comparison_script() {
-	let source = r"
+    let source = r"
 		main() {
 			2 < 3, 3 < 2, 2 <= 3, 3 <= 2, 3 <= 3
 		}
 	";
 
-	assert_exit_codes(
-		source,
-		&[
-			(2 < 3) as u32,
-			(3 < 2) as u32,
-			(2 <= 3) as u32,
-			(3 <= 2) as u32,
-			(3 <= 3) as u32,
-		]
-	);
+    assert_exit_codes(
+        source,
+        &[
+            (2 < 3) as u32,
+            (3 < 2) as u32,
+            (2 <= 3) as u32,
+            (3 <= 2) as u32,
+            (3 <= 3) as u32,
+        ],
+    );
 }
 
 #[test]
 fn greater_comparison_script() {
-	let source = r"
+    let source = r"
 		main() {
 			2 > 3, 3 > 2, 2 >= 3, 3 >= 2, 3 >= 3
 		}
 	";
 
-	assert_exit_codes(
-		source,
-		&[
-			(2 > 3) as u32,
-			(3 > 2) as u32,
-			(2 >= 3) as u32,
-			(3 >= 2) as u32,
-			(3 >= 3) as u32,
-		]
-	);
+    assert_exit_codes(
+        source,
+        &[
+            (2 > 3) as u32,
+            (3 > 2) as u32,
+            (2 >= 3) as u32,
+            (3 >= 2) as u32,
+            (3 >= 3) as u32,
+        ],
+    );
 }
 
 #[test]
 fn equals_comparison_script() {
-	let source = r"
+    let source = r"
 		main() {
 			2 == 3, 3 == 2, 3 == 3, 2 != 3, 3 != 2, 3 != 3
 		}
 	";
 
-	assert_exit_codes(
-		source,
-		&[
-			(2 == 3) as u32,
-			(3 == 2) as u32,
-			(3 == 3) as u32,
-			(2 != 3) as u32,
-			(3 != 2) as u32,
-			(3 != 3) as u32,
-		]
-	);
+    assert_exit_codes(
+        source,
+        &[
+            (2 == 3) as u32,
+            (3 == 2) as u32,
+            (3 == 3) as u32,
+            (2 != 3) as u32,
+            (3 != 2) as u32,
+            (3 != 3) as u32,
+        ],
+    );
 }
 
 #[test]
 fn function_return_script() {
-	let source = r"
+    let source = r"
 		main() {
 			let c, d = 35, 7
 			let e = add(c, d)
@@ -377,13 +377,13 @@ fn function_return_script() {
 			a + b
 		}
 	";
-	
-	assert_exit_codes(source, &[42])
+
+    assert_exit_codes(source, &[42])
 }
 
 #[test]
 fn function_return_multiple_script() {
-	let source = r"
+    let source = r"
 		main() {
 			let c, d = 35, 7
 			let e, f = add_sub(c, d)
@@ -394,13 +394,13 @@ fn function_return_multiple_script() {
 			a + b, a - b
 		}
 	";
-	
-	assert_exit_codes(source, &[42, 28])
+
+    assert_exit_codes(source, &[42, 28])
 }
 
 #[test]
 fn assembly_arguments_script() {
-	let source = r"
+    let source = r"
 		main() {
 			let c = sub_asm(49, 7)
 			c
@@ -412,6 +412,6 @@ fn assembly_arguments_script() {
 			sub  r1, r1, r2
 		}
 	";
-	
-	assert_exit_codes(source, &[42])
+
+    assert_exit_codes(source, &[42])
 }
