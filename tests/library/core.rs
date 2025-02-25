@@ -2,7 +2,7 @@ use super::assert_exit_codes;
 
 #[test]
 fn allocate_call() {
-    let source = r"
+	let source = r"
         main() {
 			init_allocator()
 			let foo = 'ABC'
@@ -21,12 +21,12 @@ fn allocate_call() {
 			[ptr + 0]:3, [ptr + 3], [ptr + 4], [ptr + 5], [ptr2]:3, ptr2 - ptr, ptr3 - ptr2
 		}
 	";
-    assert_exit_codes(source, &[0x414243, 0x44, 0x45, 0x46, 0x444546, 1024, 8])
+	assert_exit_codes(source, &[0x414243, 0x44, 0x45, 0x46, 0x444546, 1024, 8])
 }
 
 #[test]
 fn allocate_lots() {
-    let source = r"
+	let source = r"
         main() {
 			init_allocator()
 			let a = allocate(6)
@@ -42,12 +42,12 @@ fn allocate_lots() {
 			a, b - a
 		}
 	";
-    assert_exit_codes(source, &[0x800001, 8 + 64 * 8])
+	assert_exit_codes(source, &[0x800001, 8 + 64 * 8])
 }
 
 #[test]
 fn deallocate_call() {
-    let source = r"
+	let source = r"
 		main() {
 			init_allocator()
 			let foo = 'ABC'
@@ -63,12 +63,12 @@ fn deallocate_call() {
 			ptr2 == ptr, ptr2 + 3 == ptr3
 		}
 	";
-    assert_exit_codes(source, &[1, 1])
+	assert_exit_codes(source, &[1, 1])
 }
 
 #[test]
 fn allocate_deallocate_lots() {
-    let source = r"
+	let source = r"
 		main() {
 			init_allocator()
 			let i = 1
@@ -84,12 +84,12 @@ fn allocate_deallocate_lots() {
 			[pre], [post], i, post - pre
 		}
 	";
-    assert_exit_codes(source, &[0xDE, 0xAD, 1024 * 1024, 1 + 1])
+	assert_exit_codes(source, &[0xDE, 0xAD, 1024 * 1024, 1 + 1])
 }
 
 #[test]
 fn allocate_deallocate_list() {
-    let source = r"
+	let source = r"
 		let list = 0
 		main() {
 			init_allocator()
@@ -115,12 +115,12 @@ fn allocate_deallocate_list() {
 			[pre], [post], i, post - pre
 		}
 	";
-    assert_exit_codes(source, &[0xDE, 0xAD, 0xFFFFFF, 1 + 1])
+	assert_exit_codes(source, &[0xDE, 0xAD, 0xFFFFFF, 1 + 1])
 }
 
 #[test]
 fn deallocate_merge() {
-    let source = r"
+	let source = r"
 		main() {
 			init_allocator()
 			let i = 0
@@ -133,5 +133,5 @@ fn deallocate_merge() {
 			a, b, b - a, a == b, a == c
 		}
 	";
-    assert_exit_codes(source, &[0x800001, 0x800001, 0, 1, 1])
+	assert_exit_codes(source, &[0x800001, 0x800001, 0, 1, 1])
 }

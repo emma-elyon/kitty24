@@ -28,15 +28,15 @@ void main() {
 }";
 
 pub fn meta() -> ShaderMeta {
-    ShaderMeta {
-        images: vec!["tex".to_string()],
-        uniforms: UniformBlockLayout {
-            uniforms: vec![UniformDesc::new("resolution", UniformType::Float2)],
-        },
-    }
+	ShaderMeta {
+		images: vec!["tex".to_string()],
+		uniforms: UniformBlockLayout {
+			uniforms: vec![UniformDesc::new("resolution", UniformType::Float2)],
+		},
+	}
 }
 
 #[repr(C)]
 pub struct Uniforms {
-    pub resolution: (f32, f32),
+	pub resolution: (f32, f32),
 }

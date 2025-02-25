@@ -3,7 +3,7 @@ use super::*;
 #[test]
 #[should_panic] // TODO: No it shouldn't, but the first line of source gets bump
 fn vblank_interrupt() {
-    let source = r"
+	let source = r"
 		if   rE, handle
 		let  r1, 0
 		loop:
@@ -15,6 +15,6 @@ fn vblank_interrupt() {
 		let rE, 0
 		end:
 	";
-    // TODO: Skip prologue
-    assert_exit_code(source, 42).unwrap();
+	// TODO: Skip prologue
+	assert_exit_code(source, 42).unwrap();
 }
